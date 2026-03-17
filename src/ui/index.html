@@ -3,131 +3,465 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>nclaw — Activity Monitor</title>
+  <title>nclaw</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #faf9f7;
-      --surface: #f3f1ee;
-      --border: #e5e2dc;
-      --text: #1a1915;
-      --muted: #8c8880;
-      --accent: #d97706;
-      --accent-dim: #fef3c7;
-      --green: #16a34a;
-      --red: #dc2626;
-      --yellow: #b45309;
-      --blue: #2563eb;
-      --cyan: #0891b2;
-      --purple: #7c3aed;
+      --bg:          #faf9f7;
+      --surface:     #f3f1ee;
+      --border:      #e5e2dc;
+      --text:        #1a1915;
+      --muted:       #8c8880;
+      --accent:      #d97706;
+      --accent-dim:  #fef3c7;
+      --accent-dark: #b45309;
+      --green:       #16a34a;
+      --red:         #dc2626;
+      --yellow:      #b45309;
+      --blue:        #2563eb;
+      --cyan:        #0891b2;
     }
 
-    html, body { height: 100%; font-family: -apple-system, 'Inter', 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 13px; }
+    html, body { height: 100%; font-family: -apple-system, 'Inter', 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
 
-    /* ── LAYOUT ─────────────────────────────────────── */
-    .app { display: grid; grid-template-rows: 48px 1fr; height: 100vh; overflow: hidden; }
+    /* ── APP LAYOUT ─────────────────────────────────────── */
+    .app {
+      display: grid;
+      grid-template-columns: 56px 1fr;
+      height: 100vh;
+      overflow: hidden;
+    }
 
-    /* ── HEADER ──────────────────────────────────────── */
+    /* ── LEFT NAV ───────────────────────────────────────── */
+    .nav {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 0 12px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      gap: 2px;
+      overflow: hidden;
+    }
+
+    .nav-logo {
+      font-size: 15px;
+      font-weight: 900;
+      color: var(--accent);
+      letter-spacing: 1px;
+      width: 100%;
+      text-align: center;
+      padding: 14px 0 13px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 6px;
+      flex-shrink: 0;
+    }
+
+    .nav-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s;
+      flex-shrink: 0;
+    }
+    .nav-btn svg { width: 17px; height: 17px; stroke-width: 1.8; }
+    .nav-btn:hover { background: var(--border); color: var(--text); }
+    .nav-btn.active { background: var(--accent-dim); color: var(--accent); }
+
+    .nav-spacer { flex: 1; }
+
+    .nav-conn-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s, box-shadow 0.3s;
+      flex-shrink: 0;
+    }
+    .nav-conn-dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .nav-conn-dot.error     { background: var(--red); }
+
+    /* ── MAIN ───────────────────────────────────────────── */
+    .main {
+      display: grid;
+      grid-template-rows: 48px 1fr;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* ── HEADER ─────────────────────────────────────────── */
     header {
-      display: flex; align-items: center; gap: 12px;
-      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 20px;
       border-bottom: 1px solid var(--border);
       background: var(--surface);
+      flex-shrink: 0;
     }
-    .logo { font-size: 16px; font-weight: 700; color: var(--accent); letter-spacing: 2px; }
-    .tagline { color: var(--muted); font-size: 11px; }
-    .spacer { flex: 1; }
-    .conn-indicator {
-      display: flex; align-items: center; gap: 6px;
-      font-size: 11px; color: var(--muted);
+    .header-title { font-weight: 700; font-size: 14px; color: var(--text); }
+    .header-stats { display: flex; gap: 16px; margin-left: 4px; }
+    .stat { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+    .stat-val { font-weight: 700; color: var(--accent); font-size: 13px; }
+    .header-spacer { flex: 1; }
+    .conn-status { font-size: 11px; color: var(--muted); }
+
+    /* ── VIEWS ──────────────────────────────────────────── */
+    .view { overflow: hidden; min-height: 0; }
+    .view.hidden { display: none !important; }
+
+    /* ═══════════════════════════════════════════════════════
+       CHAT VIEW
+    ═══════════════════════════════════════════════════════ */
+    #view-chat {
+      display: grid;
+      grid-template-rows: 1fr auto;
+      height: 100%;
     }
-    .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
-    .conn-dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
-    .conn-dot.error { background: var(--red); }
 
-    /* stats in header */
-    .stats { display: flex; gap: 16px; }
-    .stat { text-align: center; }
-    .stat-val { font-size: 16px; font-weight: 700; color: var(--accent); }
-    .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+    /* Messages area */
+    .chat-messages {
+      overflow-y: auto;
+      padding: 28px 24px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      scroll-behavior: smooth;
+    }
 
-    /* ── MAIN AREA ───────────────────────────────────── */
-    .main { display: grid; grid-template-columns: 1fr 320px; overflow: hidden; }
+    /* Welcome screen */
+    .chat-welcome {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      min-height: 360px;
+      gap: 12px;
+      text-align: center;
+      padding: 40px;
+      color: var(--muted);
+      animation: fadeIn 0.3s ease;
+    }
+    .welcome-logo {
+      font-size: 36px;
+      font-weight: 900;
+      color: var(--accent);
+      opacity: 0.25;
+      letter-spacing: 6px;
+      margin-bottom: 4px;
+    }
+    .chat-welcome h3 { font-size: 20px; font-weight: 600; color: var(--text); }
+    .chat-welcome p  { font-size: 13px; max-width: 380px; line-height: 1.6; }
+    .example-prompts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 12px;
+    }
+    .example-prompt {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 6px 16px;
+      font-size: 12px;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .example-prompt:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-dim);
+    }
 
-    /* ── ACTIVITY FEED ───────────────────────────────── */
+    /* Message layout */
+    .msg {
+      display: flex;
+      gap: 10px;
+      animation: msgIn 0.2s ease;
+      max-width: 820px;
+    }
+    .msg.user { flex-direction: row-reverse; align-self: flex-end; }
+    .msg.agent { align-self: flex-start; }
+
+    @keyframes msgIn  { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .msg-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 800;
+      margin-top: 2px;
+      letter-spacing: 0.5px;
+    }
+    .msg.user  .msg-avatar { background: var(--accent); color: white; }
+    .msg.agent .msg-avatar { background: var(--surface); border: 1px solid var(--border); color: var(--accent); }
+
+    .msg-body { display: flex; flex-direction: column; gap: 4px; max-width: calc(100% - 38px); }
+
+    /* Tool chips (shown above agent message) */
+    .msg-tools { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 2px; }
+    .tool-chip {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: var(--accent-dim);
+      color: var(--accent-dark);
+      border: 1px solid rgba(217,119,6,0.15);
+      font-family: 'SF Mono', Menlo, monospace;
+    }
+
+    /* Bubbles */
+    .msg-bubble {
+      padding: 10px 14px;
+      border-radius: 12px;
+      line-height: 1.65;
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+    .msg.user  .msg-bubble { background: var(--accent); color: white; border-radius: 14px 4px 14px 14px; }
+    .msg.agent .msg-bubble { background: var(--surface); border: 1px solid var(--border); border-radius: 4px 14px 14px 14px; color: var(--text); }
+
+    .msg-time { font-size: 10px; color: var(--muted); padding: 0 3px; }
+    .msg.user .msg-time { text-align: right; }
+
+    /* Markdown in agent bubbles */
+    .msg.agent .msg-bubble p              { margin: 0 0 10px; }
+    .msg.agent .msg-bubble p:last-child   { margin: 0; }
+    .msg.agent .msg-bubble h1             { font-size: 1.15em; margin: 14px 0 6px; }
+    .msg.agent .msg-bubble h2             { font-size: 1.05em; margin: 12px 0 5px; }
+    .msg.agent .msg-bubble h3             { font-size: 0.95em; margin: 10px 0 4px; font-weight: 700; }
+    .msg.agent .msg-bubble ul,
+    .msg.agent .msg-bubble ol             { padding-left: 20px; margin: 6px 0; }
+    .msg.agent .msg-bubble li             { margin: 3px 0; }
+    .msg.agent .msg-bubble code           { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 3px; font-family: 'SF Mono', Menlo, monospace; font-size: 0.85em; }
+    .msg.agent .msg-bubble pre            { background: #1c1a17; border-radius: 8px; padding: 12px 14px; overflow-x: auto; margin: 8px 0; position: relative; }
+    .msg.agent .msg-bubble pre code       { background: transparent; padding: 0; color: #e5e2dc; font-size: 0.85em; }
+    .msg.agent .msg-bubble blockquote     { border-left: 3px solid var(--border); padding-left: 12px; margin: 6px 0; color: var(--muted); font-style: italic; }
+    .msg.agent .msg-bubble table          { border-collapse: collapse; width: 100%; font-size: 0.9em; margin: 8px 0; }
+    .msg.agent .msg-bubble th,
+    .msg.agent .msg-bubble td             { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+    .msg.agent .msg-bubble th             { background: var(--bg); font-weight: 600; }
+    .msg.agent .msg-bubble a              { color: var(--blue); text-decoration: underline; }
+    .msg.agent .msg-bubble hr             { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+    .msg.agent .msg-bubble strong         { font-weight: 700; }
+    .msg.user  .msg-bubble code           { background: rgba(255,255,255,0.2); }
+
+    /* Copy button on code blocks */
+    .copy-code-btn {
+      position: absolute;
+      top: 7px; right: 8px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.55);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .copy-code-btn:hover { background: rgba(255,255,255,0.18); color: white; }
+
+    /* Typing indicator */
+    .msg-typing { display: flex; gap: 10px; align-items: flex-start; animation: msgIn 0.2s ease; }
+    .typing-bubble {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px 14px 14px 14px;
+      color: var(--muted);
+      font-size: 12px;
+      min-height: 42px;
+    }
+    .typing-dots { display: flex; gap: 3px; }
+    .typing-dots span {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--muted);
+      animation: dot-bounce 1.2s ease-in-out infinite;
+    }
+    .typing-dots span:nth-child(2) { animation-delay: 0.18s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.36s; }
+    @keyframes dot-bounce {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40%           { transform: scale(1);   opacity: 1;   }
+    }
+
+    /* Chat input area */
+    .chat-input-area {
+      border-top: 1px solid var(--border);
+      padding: 12px 20px 14px;
+      background: var(--bg);
+    }
+    .chat-input-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    .chat-input-wrap { flex: 1; }
+    .chat-input-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .chat-actions { display: flex; gap: 6px; }
+    .input-hint { font-size: 10px; color: var(--muted); }
+
+    #chat-input {
+      width: 100%;
+      min-height: 44px;
+      max-height: 160px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.55;
+      resize: none;
+      outline: none;
+      overflow-y: auto;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    #chat-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(217,119,6,0.08); }
+    #chat-input::placeholder { color: var(--muted); }
+    #chat-input:disabled { opacity: 0.6; }
+
+    .send-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      border: none;
+      background: var(--accent);
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, transform 0.1s;
+      flex-shrink: 0;
+    }
+    .send-btn svg { width: 17px; height: 17px; }
+    .send-btn:hover:not(:disabled) { background: var(--accent-dark); transform: scale(1.03); }
+    .send-btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
+
+    .btn-sm {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 3px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ═══════════════════════════════════════════════════════
+       MONITOR VIEW
+    ═══════════════════════════════════════════════════════ */
+    #view-monitor {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      height: 100%;
+    }
+
     .feed-panel {
-      display: flex; flex-direction: column;
+      display: flex;
+      flex-direction: column;
       border-right: 1px solid var(--border);
       overflow: hidden;
     }
     .panel-header {
       padding: 8px 16px;
       border-bottom: 1px solid var(--border);
-      font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted);
-      display: flex; justify-content: space-between; align-items: center;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+      background: var(--surface);
     }
-    .btn-clear {
-      background: none; border: 1px solid var(--border); color: var(--muted);
-      padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit;
-    }
-    .btn-clear:hover { border-color: var(--accent); color: var(--accent); }
+    #feed { flex: 1; overflow-y: auto; padding: 6px 0; scroll-behavior: smooth; }
 
-    #feed {
-      flex: 1; overflow-y: auto; padding: 8px 0;
-      scroll-behavior: smooth;
-    }
-
-    /* ── EVENT CARDS ──────────────────────────────────── */
+    /* Event cards */
     .event {
-      padding: 8px 16px;
+      padding: 7px 16px;
       border-left: 3px solid transparent;
       animation: fadeIn 0.15s ease;
     }
-    .event:hover { background: rgba(0,0,0,0.025); }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
-
-    .event-meta { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
+    .event:hover { background: rgba(0,0,0,0.02); }
+    .event-meta { display: flex; gap: 8px; align-items: center; margin-bottom: 3px; }
     .event-tag {
-      font-size: 10px; padding: 1px 6px; border-radius: 3px;
-      text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 700;
     }
     .event-source { font-size: 10px; color: var(--muted); }
-    .event-time { font-size: 10px; color: var(--muted); margin-left: auto; }
-    .event-content { line-height: 1.5; word-break: break-word; }
+    .event-time   { font-size: 10px; color: var(--muted); margin-left: auto; }
+    .event-content { line-height: 1.5; word-break: break-word; font-size: 13px; }
     .event-content pre { white-space: pre-wrap; }
 
-    /* event type styles */
-    .ev-user_input  { border-color: var(--blue); }
-    .ev-user_input  .event-tag { background: #dbeafe; color: var(--blue); }
-    .ev-user_input  .event-content { color: #1e40af; }
+    .ev-user_input         { border-color: var(--blue); }
+    .ev-user_input .event-tag   { background: #dbeafe; color: var(--blue); }
+    .ev-user_input .event-content { color: #1e40af; }
 
-    .ev-thinking    { border-color: var(--border); }
-    .ev-thinking    .event-tag { background: var(--surface); color: var(--muted); }
-    .ev-thinking    .event-content { color: var(--muted); font-style: italic; }
+    .ev-thinking           { border-color: var(--border); }
+    .ev-thinking .event-tag { background: var(--surface); color: var(--muted); }
+    .ev-thinking .event-content { color: var(--muted); font-style: italic; }
 
-    .ev-tool_call   { border-color: var(--yellow); }
-    .ev-tool_call   .event-tag { background: #fef3c7; color: var(--yellow); }
-    .ev-tool_call   .tool-name { color: var(--yellow); font-weight: 700; }
-    .ev-tool_call   .tool-args { color: #78716c; margin-top: 2px; font-size: 12px; }
+    .ev-tool_call          { border-color: var(--yellow); }
+    .ev-tool_call .event-tag { background: #fef3c7; color: var(--yellow); }
+    .ev-tool_call .tool-name { color: var(--yellow); font-weight: 700; }
+    .ev-tool_call .tool-args { color: #78716c; margin-top: 2px; font-size: 12px; }
 
-    .ev-tool_result.success { border-color: var(--green); }
+    .ev-tool_result.success  { border-color: var(--green); }
     .ev-tool_result.success .event-tag { background: #dcfce7; color: var(--green); }
     .ev-tool_result.success .event-content { color: #15803d; }
 
-    .ev-tool_result.failure { border-color: var(--red); }
+    .ev-tool_result.failure  { border-color: var(--red); }
     .ev-tool_result.failure .event-tag { background: #fee2e2; color: var(--red); }
     .ev-tool_result.failure .event-content { color: var(--red); }
 
-    .ev-response    { border-color: var(--accent); background: rgba(217,119,6,0.04); }
-    .ev-response    .event-tag { background: var(--accent-dim); color: var(--accent); }
-    .ev-response    .event-content { color: var(--text); }
+    .ev-response           { border-color: var(--accent); background: rgba(217,119,6,0.03); }
+    .ev-response .event-tag { background: var(--accent-dim); color: var(--accent); }
 
-    .ev-error       { border-color: var(--red); }
-    .ev-error       .event-tag { background: #fee2e2; color: var(--red); }
-    .ev-error       .event-content { color: var(--red); }
+    .ev-error              { border-color: var(--red); }
+    .ev-error .event-tag   { background: #fee2e2; color: var(--red); }
+    .ev-error .event-content { color: var(--red); }
 
-    .truncated { color: var(--muted); font-size: 11px; font-style: italic; }
+    .truncated  { color: var(--muted); font-size: 11px; font-style: italic; }
     .expand-btn {
       background: none; border: 1px solid var(--border); color: var(--muted);
       padding: 1px 6px; border-radius: 3px; cursor: pointer; font-size: 10px;
@@ -135,294 +469,938 @@
     }
     .expand-btn:hover { color: var(--accent); border-color: var(--accent); }
 
-    /* ── SIDEBAR ─────────────────────────────────────── */
-    .sidebar { display: flex; flex-direction: column; overflow: hidden; }
+    .source-cli      { color: var(--accent); }
+    .source-telegram { color: #2aabee; }
+    .source-web      { color: var(--green); }
 
+    /* Sidebar */
+    .sidebar { display: flex; flex-direction: column; overflow: hidden; }
     .sidebar-section {
       border-bottom: 1px solid var(--border);
-      display: flex; flex-direction: column;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
-    .sidebar-section.tasks { flex: 1; overflow: hidden; }
-    .sidebar-section:last-child { border-bottom: none; flex: 1; overflow: hidden; }
-
+    .sidebar-section.tasks    { flex: 0 0 50%; }
+    .sidebar-section.facts    { flex: 1; border-bottom: none; }
     .sidebar-header {
-      padding: 8px 12px;
-      font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted);
+      padding: 7px 12px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
       background: var(--surface);
       flex-shrink: 0;
+      border-bottom: 1px solid var(--border);
     }
-    .sidebar-body {
-      padding: 8px 12px;
-      overflow-y: auto;
-      flex: 1;
-    }
+    .sidebar-body { padding: 8px 12px; overflow-y: auto; flex: 1; }
 
-    /* Task items */
-    .task-item { margin-bottom: 12px; padding: 8px; background: var(--surface); border-radius: 6px; border: 1px solid var(--border); }
+    .task-item { margin-bottom: 10px; padding: 8px; background: var(--surface); border-radius: 6px; border: 1px solid var(--border); }
     .task-name { font-weight: 700; color: var(--cyan); font-size: 12px; margin-bottom: 4px; }
     .task-subtask { display: flex; align-items: flex-start; gap: 6px; font-size: 11px; margin: 2px 0; color: var(--muted); }
     .task-subtask.done { color: var(--green); text-decoration: line-through; }
     .task-check { flex-shrink: 0; margin-top: 1px; }
-
-    /* Facts */
-    .fact-item { font-size: 11px; color: var(--muted); padding: 2px 0; border-bottom: 1px solid var(--border); }
+    .fact-item { font-size: 11px; color: var(--muted); padding: 3px 0; border-bottom: 1px solid var(--border); line-height: 1.4; }
+    .fact-item:last-child { border-bottom: none; }
     .fact-item::before { content: '•'; color: var(--accent); margin-right: 6px; }
-
-    /* Empty state */
     .empty { color: var(--muted); font-size: 11px; font-style: italic; padding: 4px 0; }
 
-    /* Scrollbar */
+    /* ═══════════════════════════════════════════════════════
+       SETTINGS VIEW
+    ═══════════════════════════════════════════════════════ */
+    #view-settings { overflow-y: auto; padding: 28px 32px 40px; height: 100%; }
+    .settings-wrap { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+    .settings-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .settings-card-header {
+      padding: 13px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--bg);
+    }
+    .settings-card-header svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .settings-card-title { font-weight: 700; font-size: 14px; }
+    .settings-card-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+
+    .settings-field { display: flex; flex-direction: column; gap: 4px; }
+    .settings-field-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 600; }
+    .settings-field-val {
+      font-size: 13px;
+      font-family: 'SF Mono', Menlo, monospace;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 11px;
+      color: var(--text);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge.ok    { background: #dcfce7; color: var(--green); }
+    .badge.warn  { background: #fef3c7; color: var(--yellow); }
+    .badge.err   { background: #fee2e2; color: var(--red); }
+
+    /* Note box */
+    .note {
+      background: var(--accent-dim);
+      border: 1px solid rgba(217,119,6,0.18);
+      border-radius: 8px;
+      padding: 11px 14px;
+      font-size: 12px;
+      color: var(--accent-dark);
+      line-height: 1.55;
+    }
+
+    /* Steps */
+    .steps { display: flex; flex-direction: column; gap: 14px; }
+    .step  { display: flex; gap: 12px; align-items: flex-start; }
+    .step-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .step-body { flex: 1; }
+    .step-text { font-size: 13px; line-height: 1.5; color: var(--text); }
+    .step-code {
+      margin-top: 7px;
+      background: #1c1a17;
+      color: #e5e2dc;
+      padding: 9px 13px;
+      border-radius: 7px;
+      font-family: 'SF Mono', Menlo, monospace;
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .step-code code { flex: 1; word-break: break-all; }
+    .copy-btn {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.55);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .copy-btn:hover { background: rgba(255,255,255,0.18); color: white; }
+
+    /* Bot commands table */
+    .cmd-table { display: flex; flex-direction: column; gap: 6px; }
+    .cmd-row { display: flex; gap: 12px; font-size: 12px; align-items: baseline; }
+    .cmd-name { font-family: 'SF Mono', Menlo, monospace; color: #2aabee; min-width: 80px; flex-shrink: 0; }
+    .cmd-desc { color: var(--muted); }
+
+    /* Stats grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .stat-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+    }
+    .stat-card-val { font-size: 26px; font-weight: 800; color: var(--accent); }
+    .stat-card-label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    /* ── SCROLLBAR ─────────────────────────────────────── */
     ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #d1cdc7; border-radius: 2px; }
     ::-webkit-scrollbar-thumb:hover { background: #b8b3ac; }
-
-    /* Source badge */
-    .source-cli { color: var(--accent); }
-    .source-telegram { color: #2aabee; }
-    .source-api { color: var(--green); }
   </style>
 </head>
 <body>
 <div class="app">
 
-  <!-- HEADER -->
-  <header>
-    <div class="logo">NCLAW</div>
-    <div class="tagline">Activity Monitor</div>
-    <div class="stats">
-      <div class="stat"><div class="stat-val" id="stat-facts">0</div><div class="stat-label">Facts</div></div>
-      <div class="stat"><div class="stat-val" id="stat-skills">0</div><div class="stat-label">Skills</div></div>
-      <div class="stat"><div class="stat-val" id="stat-processes">0</div><div class="stat-label">Processes</div></div>
-      <div class="stat"><div class="stat-val" id="stat-tasks">0</div><div class="stat-label">Tasks</div></div>
-    </div>
-    <div class="spacer"></div>
-    <div class="conn-indicator">
-      <div class="conn-dot" id="conn-dot"></div>
-      <span id="conn-status">Connecting…</span>
-    </div>
-  </header>
+  <!-- ── LEFT NAV ── -->
+  <nav class="nav">
+    <div class="nav-logo">N</div>
 
-  <!-- MAIN -->
+    <button class="nav-btn active" id="nav-chat" onclick="setView('chat')" title="Chat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+    </button>
+
+    <button class="nav-btn" id="nav-monitor" onclick="setView('monitor')" title="Activity Monitor">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+    </button>
+
+    <button class="nav-btn" id="nav-settings" onclick="setView('settings')" title="Settings & Setup">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+
+    <div class="nav-spacer"></div>
+    <div class="nav-conn-dot" id="conn-dot" title="SSE connection status"></div>
+  </nav>
+
+  <!-- ── MAIN ── -->
   <div class="main">
 
-    <!-- ACTIVITY FEED -->
-    <div class="feed-panel">
-      <div class="panel-header">
-        <span>Live Activity</span>
-        <button class="btn-clear" onclick="clearFeed()">Clear</button>
+    <!-- HEADER -->
+    <header>
+      <div class="header-title" id="view-title">Chat</div>
+      <div class="header-stats">
+        <div class="stat"><span class="stat-val" id="stat-facts">—</span>&nbsp;Facts</div>
+        <div class="stat"><span class="stat-val" id="stat-skills">—</span>&nbsp;Skills</div>
+        <div class="stat"><span class="stat-val" id="stat-tasks">—</span>&nbsp;Tasks</div>
       </div>
-      <div id="feed">
-        <div class="event ev-thinking" style="opacity:0.5">
-          <div class="event-meta">
-            <span class="event-tag">READY</span>
+      <div class="header-spacer"></div>
+      <div class="conn-status" id="conn-status">Connecting…</div>
+    </header>
+
+    <!-- ═══ CHAT VIEW ═══ -->
+    <div class="view" id="view-chat">
+      <div class="chat-messages" id="chat-messages">
+        <div class="chat-welcome" id="chat-welcome">
+          <div class="welcome-logo">NCLAW</div>
+          <h3>Your local AI agent</h3>
+          <p>Powered by LM Studio · All processing on your machine · No data leaves</p>
+          <div class="example-prompts">
+            <button class="example-prompt" onclick="usePrompt(this)">commit my changes</button>
+            <button class="example-prompt" onclick="usePrompt(this)">review src/index.js</button>
+            <button class="example-prompt" onclick="usePrompt(this)">list active tasks</button>
+            <button class="example-prompt" onclick="usePrompt(this)">what's in my clipboard?</button>
+            <button class="example-prompt" onclick="usePrompt(this)">remember that I use pnpm</button>
+            <button class="example-prompt" onclick="usePrompt(this)">scan this project</button>
           </div>
-          <div class="event-content">Waiting for agent activity…</div>
+        </div>
+      </div>
+
+      <div class="chat-input-area">
+        <div class="chat-input-meta">
+          <div class="chat-actions">
+            <button class="btn-sm" onclick="clearChat()">Clear history</button>
+          </div>
+          <div class="input-hint">Enter ↵ to send &nbsp;·&nbsp; Shift+Enter for newline</div>
+        </div>
+        <div class="chat-input-row">
+          <div class="chat-input-wrap">
+            <textarea
+              id="chat-input"
+              placeholder="Message nclaw…"
+              rows="1"
+              autocomplete="off"
+              spellcheck="true"
+            ></textarea>
+          </div>
+          <button class="send-btn" id="send-btn" onclick="sendMessage()" title="Send (Enter)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- SIDEBAR -->
-    <div class="sidebar">
+    <!-- ═══ MONITOR VIEW ═══ -->
+    <div class="view hidden" id="view-monitor">
 
-      <!-- Active Tasks -->
-      <div class="sidebar-section tasks">
-        <div class="sidebar-header">Active Tasks</div>
-        <div class="sidebar-body" id="tasks-list">
-          <div class="empty">No active tasks</div>
+      <div class="feed-panel">
+        <div class="panel-header">
+          <span>Live Activity Feed</span>
+          <button class="btn-sm" onclick="clearFeed()">Clear</button>
+        </div>
+        <div id="feed">
+          <div class="event ev-thinking" style="opacity:0.5">
+            <div class="event-meta"><span class="event-tag">READY</span></div>
+            <div class="event-content">Waiting for agent activity…</div>
+          </div>
         </div>
       </div>
 
-      <!-- Memory Facts -->
-      <div class="sidebar-section">
-        <div class="sidebar-header">Memory: Facts</div>
-        <div class="sidebar-body" id="facts-list">
-          <div class="empty">No facts recorded</div>
+      <div class="sidebar">
+        <div class="sidebar-section tasks">
+          <div class="sidebar-header">Active Tasks</div>
+          <div class="sidebar-body" id="tasks-list">
+            <div class="empty">No active tasks</div>
+          </div>
+        </div>
+        <div class="sidebar-section facts">
+          <div class="sidebar-header">Memory · Facts</div>
+          <div class="sidebar-body" id="facts-list">
+            <div class="empty">No facts recorded</div>
+          </div>
         </div>
       </div>
 
     </div>
+
+    <!-- ═══ SETTINGS VIEW ═══ -->
+    <div class="view hidden" id="view-settings">
+      <div class="settings-wrap">
+
+        <!-- Connection Status -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <div class="settings-card-title">LM Studio Connection</div>
+            <div style="margin-left:auto" id="lm-status-badge"></div>
+          </div>
+          <div class="settings-card-body">
+            <div class="settings-field">
+              <div class="settings-field-label">Base URL</div>
+              <div class="settings-field-val" id="cfg-url">Loading…</div>
+            </div>
+            <div class="settings-field">
+              <div class="settings-field-label">Model</div>
+              <div class="settings-field-val" id="cfg-model">Loading…</div>
+            </div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.5">
+              Configure via environment variables: <code style="font-family:monospace;background:var(--bg);padding:1px 5px;border-radius:3px">LM_STUDIO_BASE_URL</code>,
+              <code style="font-family:monospace;background:var(--bg);padding:1px 5px;border-radius:3px">LM_STUDIO_MODEL</code> in your <code style="font-family:monospace;background:var(--bg);padding:1px 5px;border-radius:3px">.env</code> file.
+            </div>
+          </div>
+        </div>
+
+        <!-- Telegram Setup -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#2aabee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+            <div class="settings-card-title">Telegram Bot</div>
+            <div style="margin-left:auto" id="telegram-badge"></div>
+          </div>
+          <div class="settings-card-body">
+            <div class="note">
+              Connect nclaw to Telegram to interact with your agent from anywhere on your phone.
+              Uses long polling — no public server or domain name required.
+            </div>
+
+            <div class="steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-body">
+                  <div class="step-text">Open Telegram and search for <strong>@BotFather</strong>, then start a chat with it.</div>
+                </div>
+              </div>
+
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-body">
+                  <div class="step-text">Send the <code style="font-family:monospace;background:rgba(0,0,0,0.06);padding:1px 5px;border-radius:3px">/newbot</code> command to create your bot.</div>
+                  <div class="step-code">
+                    <code>/newbot</code>
+                    <button class="copy-btn" onclick="copyText('/newbot', this)">Copy</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-body">
+                  <div class="step-text">Choose a display name (e.g. <em>My nclaw</em>) and then a unique username ending in <code style="font-family:monospace;background:rgba(0,0,0,0.06);padding:1px 5px;border-radius:3px">_bot</code> (e.g. <em>my_nclaw_bot</em>).</div>
+                </div>
+              </div>
+
+              <div class="step">
+                <div class="step-num">4</div>
+                <div class="step-body">
+                  <div class="step-text">BotFather sends you a <strong>bot token</strong>. It looks like:</div>
+                  <div class="step-code">
+                    <code>1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ</code>
+                  </div>
+                </div>
+              </div>
+
+              <div class="step">
+                <div class="step-num">5</div>
+                <div class="step-body">
+                  <div class="step-text">Open the <strong>.env</strong> file in your nclaw directory and add:</div>
+                  <div class="step-code">
+                    <code>TELEGRAM_BOT_TOKEN=your_token_here</code>
+                    <button class="copy-btn" onclick="copyText('TELEGRAM_BOT_TOKEN=your_token_here', this)">Copy</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="step">
+                <div class="step-num">6</div>
+                <div class="step-body">
+                  <div class="step-text">Restart nclaw. The bot starts automatically when it finds the token.</div>
+                  <div class="step-code">
+                    <code>node src/cli.js</code>
+                    <button class="copy-btn" onclick="copyText('node src/cli.js', this)">Copy</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="step">
+                <div class="step-num">7</div>
+                <div class="step-body">
+                  <div class="step-text">Search for your bot in Telegram and send <strong>/start</strong>. You're connected!</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Bot commands reference -->
+            <div class="settings-field">
+              <div class="settings-field-label">Available Bot Commands</div>
+              <div class="cmd-table" style="margin-top:6px">
+                <div class="cmd-row"><span class="cmd-name">/start</span><span class="cmd-desc">Welcome message and available commands</span></div>
+                <div class="cmd-row"><span class="cmd-name">/tasks</span><span class="cmd-desc">List all active tasks</span></div>
+                <div class="cmd-row"><span class="cmd-name">/status</span><span class="cmd-desc">Show uptime and agent status</span></div>
+                <div class="cmd-row"><span class="cmd-name">/clear</span><span class="cmd-desc">Clear conversation history for this chat</span></div>
+                <div class="cmd-row"><span class="cmd-name">any text</span><span class="cmd-desc">Send a message directly to your agent</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Memory & Skills Stats -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            </svg>
+            <div class="settings-card-title">Memory & Skills</div>
+          </div>
+          <div class="settings-card-body">
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-card-val" id="mem-facts">—</div>
+                <div class="stat-card-label">Facts</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-card-val" id="mem-skills">—</div>
+                <div class="stat-card-label">Skills</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-card-val" id="mem-processes">—</div>
+                <div class="stat-card-label">Processes</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-card-val" id="mem-tasks">—</div>
+                <div class="stat-card-label">Active Tasks</div>
+              </div>
+            </div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.6">
+              Skills live in <code style="font-family:monospace;background:var(--bg);padding:1px 5px;border-radius:3px">~/.nclaw/skills/*.md</code> ·
+              Processes in <code style="font-family:monospace;background:var(--bg);padding:1px 5px;border-radius:3px">~/.nclaw/processes/*.md</code> ·
+              Facts in <code style="font-family:monospace;background:var(--bg);padding:1px 5px;border-radius:3px">~/.nclaw/memory/facts.md</code>
+            </div>
+          </div>
+        </div>
+
+        <!-- About -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <div class="settings-card-title">About nclaw</div>
+            <span class="badge ok" style="margin-left:auto">v2.0.0</span>
+          </div>
+          <div class="settings-card-body">
+            <div style="font-size:13px;color:var(--muted);line-height:1.7">
+              <strong style="color:var(--text)">nclaw</strong> is a markdown-driven local AI agent for MacBook productivity.
+              All processing runs on your machine via LM Studio — no cloud, no subscriptions, no data sharing.
+              <br><br>
+              ReAct loop · 10 built-in tools · Markdown skills & processes ·
+              Telegram integration · Persistent memory
+            </div>
+            <div style="display:flex;gap:8px;margin-top:4px">
+              <div id="uptime-display" style="font-size:11px;color:var(--muted)">Uptime: loading…</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <!-- end settings -->
+
   </div>
+  <!-- end .main -->
+
 </div>
+<!-- end .app -->
 
 <script>
-  let autoScroll = true;
-  const feed = document.getElementById('feed');
+  // ── Marked setup ──────────────────────────────────────
+  if (typeof marked !== 'undefined') {
+    marked.use({ gfm: true, breaks: true });
+  }
 
-  feed.addEventListener('scroll', () => {
-    autoScroll = feed.scrollTop + feed.clientHeight >= feed.scrollHeight - 20;
+  // ── View management ───────────────────────────────────
+  const VIEWS = ['chat', 'monitor', 'settings'];
+  const VIEW_TITLES = { chat: 'Chat', monitor: 'Activity Monitor', settings: 'Settings' };
+  let currentView = 'chat';
+
+  function setView(name) {
+    VIEWS.forEach(v => {
+      document.getElementById(`view-${v}`).classList.toggle('hidden', v !== name);
+      document.getElementById(`nav-${v}`).classList.toggle('active', v === name);
+    });
+    document.getElementById('view-title').textContent = VIEW_TITLES[name];
+    currentView = name;
+    if (name === 'settings') loadSettings();
+  }
+
+  // ── Chat State ────────────────────────────────────────
+  // displayHistory: array of { role:'user'|'agent', content:string, time:string, tools?:string[] }
+  let displayHistory = [];
+  let isSending = false;
+  let pendingTools = [];
+
+  // Restore from sessionStorage
+  try {
+    const saved = sessionStorage.getItem('nclaw-display-history');
+    if (saved) {
+      displayHistory = JSON.parse(saved);
+      if (displayHistory.length > 0) {
+        document.getElementById('chat-welcome').remove();
+        displayHistory.forEach(m => renderMessage(m, false));
+        const mc = document.getElementById('chat-messages');
+        mc.scrollTop = mc.scrollHeight;
+      }
+    }
+  } catch (_) {}
+
+  function saveDisplayHistory() {
+    try { sessionStorage.setItem('nclaw-display-history', JSON.stringify(displayHistory)); } catch (_) {}
+  }
+
+  // ── Helpers ───────────────────────────────────────────
+  function fmtTime(iso) {
+    return new Date(iso).toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit' });
+  }
+
+  function esc(str) {
+    const d = document.createElement('div');
+    d.textContent = String(str);
+    return d.innerHTML;
+  }
+
+  function renderMd(text) {
+    if (typeof marked === 'undefined') return esc(text).replace(/\n/g, '<br>');
+    try { return marked.parse(text); } catch (_) { return esc(text).replace(/\n/g, '<br>'); }
+  }
+
+  function addCopyButtons(container) {
+    container.querySelectorAll('pre').forEach(pre => {
+      if (pre.querySelector('.copy-code-btn')) return;
+      const btn = document.createElement('button');
+      btn.className = 'copy-code-btn';
+      btn.textContent = 'Copy';
+      btn.onclick = () => {
+        const code = pre.querySelector('code');
+        navigator.clipboard.writeText(code ? code.textContent : pre.textContent)
+          .then(() => { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy', 2000); })
+          .catch(() => {});
+      };
+      pre.appendChild(btn);
+    });
+  }
+
+  // ── Render a message bubble ───────────────────────────
+  function renderMessage(msg, scroll = true) {
+    const welcome = document.getElementById('chat-welcome');
+    if (welcome) welcome.remove();
+
+    const mc = document.getElementById('chat-messages');
+    const isUser = msg.role === 'user';
+    const div = document.createElement('div');
+    div.className = `msg ${isUser ? 'user' : 'agent'}`;
+
+    const avatar = isUser
+      ? `<div class="msg-avatar">YOU</div>`
+      : `<div class="msg-avatar">NC</div>`;
+
+    const toolsHtml = (!isUser && msg.tools && msg.tools.length > 0)
+      ? `<div class="msg-tools">${msg.tools.map(t => `<span class="tool-chip">${esc(t)}</span>`).join('')}</div>`
+      : '';
+
+    const bubbleContent = isUser
+      ? esc(msg.content).replace(/\n/g, '<br>')
+      : renderMd(msg.content);
+
+    div.innerHTML = `
+      ${avatar}
+      <div class="msg-body">
+        ${toolsHtml}
+        <div class="msg-bubble">${bubbleContent}</div>
+        <div class="msg-time">${fmtTime(msg.time)}</div>
+      </div>
+    `;
+
+    if (!isUser) addCopyButtons(div);
+    mc.appendChild(div);
+    if (scroll) { mc.scrollTop = mc.scrollHeight; }
+    return div;
+  }
+
+  // ── Typing indicator ──────────────────────────────────
+  let typingEl = null;
+
+  function showTyping(toolLabel = '') {
+    const mc = document.getElementById('chat-messages');
+    const welcome = document.getElementById('chat-welcome');
+    if (welcome) welcome.remove();
+
+    if (!typingEl) {
+      typingEl = document.createElement('div');
+      typingEl.className = 'msg-typing';
+      mc.appendChild(typingEl);
+    }
+
+    const toolHtml = toolLabel
+      ? `<span style="font-size:11px;color:var(--accent);margin-left:4px">→ ${esc(toolLabel)}</span>`
+      : '';
+
+    typingEl.innerHTML = `
+      <div class="msg-avatar" style="background:var(--surface);border:1px solid var(--border);color:var(--accent);width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0;margin-top:2px">NC</div>
+      <div class="typing-bubble">
+        <div class="typing-dots"><span></span><span></span><span></span></div>
+        ${toolHtml}
+      </div>
+    `;
+    mc.scrollTop = mc.scrollHeight;
+  }
+
+  function hideTyping() {
+    if (typingEl) { typingEl.remove(); typingEl = null; }
+  }
+
+  // ── Send message ──────────────────────────────────────
+  async function sendMessage() {
+    if (isSending) return;
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    isSending = true;
+    pendingTools = [];
+    const sendBtn = document.getElementById('send-btn');
+    sendBtn.disabled = true;
+    input.disabled = true;
+    input.value = '';
+    input.style.height = 'auto';
+
+    // Render user bubble
+    const userMsg = { role: 'user', content: text, time: new Date().toISOString() };
+    displayHistory.push(userMsg);
+    renderMessage(userMsg);
+    saveDisplayHistory();
+
+    showTyping();
+
+    try {
+      const resp = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text }),
+      });
+
+      if (!resp.ok) {
+        let errMsg = `HTTP ${resp.status}`;
+        try { const e = await resp.json(); errMsg = e.error || errMsg; } catch (_) {}
+        throw new Error(errMsg);
+      }
+
+      const data = await resp.json();
+      hideTyping();
+
+      const agentMsg = {
+        role: 'agent',
+        content: data.response,
+        time: new Date().toISOString(),
+        tools: pendingTools.slice(),
+      };
+      displayHistory.push(agentMsg);
+      renderMessage(agentMsg);
+      saveDisplayHistory();
+
+    } catch (e) {
+      hideTyping();
+      const errMsg = {
+        role: 'agent',
+        content: `**Error:** ${e.message}\n\nMake sure LM Studio is running at the configured URL.`,
+        time: new Date().toISOString(),
+        tools: [],
+      };
+      displayHistory.push(errMsg);
+      renderMessage(errMsg);
+      saveDisplayHistory();
+    }
+
+    pendingTools = [];
+    isSending = false;
+    sendBtn.disabled = false;
+    input.disabled = false;
+    input.focus();
+  }
+
+  // ── Clear chat ────────────────────────────────────────
+  function clearChat() {
+    if (!confirm('Clear chat history?')) return;
+    displayHistory = [];
+    saveDisplayHistory();
+    // Also clear server-side history
+    fetch('/api/chat/clear', { method: 'POST' }).catch(() => {});
+
+    const mc = document.getElementById('chat-messages');
+    mc.innerHTML = '';
+    const welcome = document.createElement('div');
+    welcome.className = 'chat-welcome';
+    welcome.id = 'chat-welcome';
+    welcome.innerHTML = `
+      <div class="welcome-logo">NCLAW</div>
+      <h3>Your local AI agent</h3>
+      <p>Powered by LM Studio · All processing on your machine · No data leaves</p>
+      <div class="example-prompts">
+        <button class="example-prompt" onclick="usePrompt(this)">commit my changes</button>
+        <button class="example-prompt" onclick="usePrompt(this)">review src/index.js</button>
+        <button class="example-prompt" onclick="usePrompt(this)">list active tasks</button>
+        <button class="example-prompt" onclick="usePrompt(this)">what's in my clipboard?</button>
+        <button class="example-prompt" onclick="usePrompt(this)">remember that I use pnpm</button>
+        <button class="example-prompt" onclick="usePrompt(this)">scan this project</button>
+      </div>
+    `;
+    mc.appendChild(welcome);
+  }
+
+  function usePrompt(el) {
+    const input = document.getElementById('chat-input');
+    input.value = el.textContent;
+    autoResize(input);
+    input.focus();
+    setView('chat');
+  }
+
+  // ── Auto-resize textarea ──────────────────────────────
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+  }
+
+  const chatInput = document.getElementById('chat-input');
+  chatInput.addEventListener('input', function() { autoResize(this); });
+  chatInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
 
-  function scrollToBottom() {
-    if (autoScroll) feed.scrollTop = feed.scrollHeight;
-  }
+  // ── SSE Connection ────────────────────────────────────
+  const connDot = document.getElementById('conn-dot');
+  const connStatusEl = document.getElementById('conn-status');
 
-  function formatTime(iso) {
-    return new Date(iso).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  }
-
-  function sourceClass(src) {
-    if (src === 'telegram') return 'source-telegram';
-    if (src === 'api') return 'source-api';
-    return 'source-cli';
-  }
-
-  function escape(str) {
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
-
-  function truncate(str, max = 300) {
-    const s = String(str);
-    if (s.length <= max) return { text: escape(s), truncated: false };
-    return { text: escape(s.slice(0, max)), truncated: true, full: escape(s) };
-  }
-
-  function addEvent(type, html, cls = '') {
-    // Remove "waiting" placeholder on first real event
-    const placeholder = feed.querySelector('.ev-thinking[style]');
-    if (placeholder) placeholder.remove();
-
-    const div = document.createElement('div');
-    div.className = `event ev-${type} ${cls}`;
-    div.innerHTML = html;
-    feed.appendChild(div);
-    scrollToBottom();
-  }
-
-  function makeExpander(id, fullText) {
-    return `<span class="truncated">… (truncated)</span>
-      <button class="expand-btn" onclick="
-        document.getElementById('${id}').innerHTML = \`${fullText.replace(/`/g,'\\`')}\`;
-        this.remove();
-      ">Show full</button>`;
-  }
-
-  // ── EVENT HANDLERS ─────────────────────────────────
-  const handlers = {
-
-    user_input({ input, source, timestamp }) {
-      const src = source || 'cli';
-      addEvent('user_input', `
-        <div class="event-meta">
-          <span class="event-tag">USER</span>
-          <span class="event-source ${sourceClass(src)}">${src}</span>
-          <span class="event-time">${formatTime(timestamp)}</span>
-        </div>
-        <div class="event-content">${escape(input)}</div>
-      `);
-    },
-
-    thinking({ step, source, timestamp }) {
-      addEvent('thinking', `
-        <div class="event-meta">
-          <span class="event-tag">THINK</span>
-          <span class="event-time">${formatTime(timestamp)}</span>
-        </div>
-        <div class="event-content">Step ${step} — reasoning…</div>
-      `);
-    },
-
-    tool_call({ toolName, args, timestamp, source }) {
-      const argsStr = JSON.stringify(args, null, 2);
-      const id = 'tc-' + Date.now();
-      const { text, truncated, full } = truncate(argsStr, 200);
-      addEvent('tool_call', `
-        <div class="event-meta">
-          <span class="event-tag">TOOL CALL</span>
-          <span class="event-time">${formatTime(timestamp)}</span>
-        </div>
-        <div class="tool-name">${escape(toolName)}</div>
-        <pre class="tool-args" id="${id}">${text}${truncated ? makeExpander(id, full) : ''}</pre>
-      `);
-    },
-
-    tool_result({ toolName, success, result, timestamp }) {
-      const cls = success ? 'success' : 'failure';
-      const label = success ? 'OK' : 'FAIL';
-      const preview = success
-        ? (result.data ? String(result.data).slice(0, 200) : 'success')
-        : (result.error || 'unknown error');
-      const id = 'tr-' + Date.now();
-      const { text, truncated, full } = truncate(preview, 200);
-      addEvent('tool_result', `
-        <div class="event-meta">
-          <span class="event-tag">${label}</span>
-          <span style="color:var(--muted);font-size:11px">${escape(toolName)}</span>
-          <span class="event-time">${formatTime(timestamp)}</span>
-        </div>
-        <pre class="event-content" id="${id}">${text}${truncated ? makeExpander(id, full) : ''}</pre>
-      `, cls);
-    },
-
-    response({ response, source, timestamp }) {
-      const src = source || 'cli';
-      const id = 'resp-' + Date.now();
-      const { text, truncated, full } = truncate(response, 500);
-      addEvent('response', `
-        <div class="event-meta">
-          <span class="event-tag">RESPONSE</span>
-          <span class="event-source ${sourceClass(src)}">${src}</span>
-          <span class="event-time">${formatTime(timestamp)}</span>
-        </div>
-        <pre class="event-content" id="${id}">${text}${truncated ? makeExpander(id, full) : ''}</pre>
-      `);
-      // Refresh stats after response
-      refreshStatus();
-      refreshTasks();
-      refreshFacts();
-    },
-
-    error({ error, source, timestamp }) {
-      addEvent('error', `
-        <div class="event-meta">
-          <span class="event-tag">ERROR</span>
-          <span class="event-time">${formatTime(timestamp)}</span>
-        </div>
-        <div class="event-content">${escape(error)}</div>
-      `);
-    },
-  };
-
-  // ── SSE CONNECTION ──────────────────────────────────
-  const dot = document.getElementById('conn-dot');
-  const statusEl = document.getElementById('conn-status');
-
-  function connect() {
+  function connectSSE() {
     const es = new EventSource('/events');
 
     es.onopen = () => {
-      dot.className = 'conn-dot connected';
-      statusEl.textContent = 'Connected';
+      connDot.className = 'nav-conn-dot connected';
+      connStatusEl.textContent = 'Connected';
     };
 
     es.onerror = () => {
-      dot.className = 'conn-dot error';
-      statusEl.textContent = 'Reconnecting…';
+      connDot.className = 'nav-conn-dot error';
+      connStatusEl.textContent = 'Reconnecting…';
     };
 
-    const eventNames = ['user_input', 'thinking', 'tool_call', 'tool_result', 'response', 'error'];
-    for (const name of eventNames) {
+    const sseHandlers = {
+      user_input({ input, source, timestamp }) {
+        const src = source || 'cli';
+        addFeedEvent('user_input', `
+          <div class="event-meta">
+            <span class="event-tag">USER</span>
+            <span class="event-source source-${src === 'telegram' ? 'telegram' : src === 'web' ? 'web' : 'cli'}">${esc(src)}</span>
+            <span class="event-time">${monTime(timestamp)}</span>
+          </div>
+          <div class="event-content">${esc(input)}</div>
+        `);
+      },
+
+      thinking({ step, timestamp }) {
+        addFeedEvent('thinking', `
+          <div class="event-meta">
+            <span class="event-tag">THINK</span>
+            <span class="event-time">${monTime(timestamp)}</span>
+          </div>
+          <div class="event-content">Step ${step} — reasoning…</div>
+        `);
+      },
+
+      tool_call({ toolName, args, timestamp }) {
+        const argsStr = JSON.stringify(args, null, 2);
+        const id = 'tc-' + Date.now() + Math.random().toString(36).slice(2);
+        const { text, trunc, full } = truncate(argsStr, 200);
+        addFeedEvent('tool_call', `
+          <div class="event-meta">
+            <span class="event-tag">TOOL CALL</span>
+            <span class="event-time">${monTime(timestamp)}</span>
+          </div>
+          <div class="tool-name">${esc(toolName)}</div>
+          <pre class="tool-args" id="${id}">${text}${trunc ? expander(id, full) : ''}</pre>
+        `);
+        // Update typing indicator in chat if currently sending
+        if (isSending) {
+          if (!pendingTools.includes(toolName)) pendingTools.push(toolName);
+          showTyping(toolName);
+        }
+      },
+
+      tool_result({ toolName, success, result, timestamp }) {
+        const cls = success ? 'success' : 'failure';
+        const label = success ? 'OK' : 'FAIL';
+        const preview = success
+          ? (result && result.data ? String(result.data).slice(0, 200) : 'success')
+          : (result && result.error ? result.error : 'unknown error');
+        const id = 'tr-' + Date.now() + Math.random().toString(36).slice(2);
+        const { text, trunc, full } = truncate(preview, 200);
+        addFeedEvent('tool_result', `
+          <div class="event-meta">
+            <span class="event-tag">${label}</span>
+            <span style="color:var(--muted);font-size:11px">${esc(toolName)}</span>
+            <span class="event-time">${monTime(timestamp)}</span>
+          </div>
+          <pre class="event-content" id="${id}">${text}${trunc ? expander(id, full) : ''}</pre>
+        `, cls);
+      },
+
+      response({ source, timestamp }) {
+        const src = source || 'cli';
+        addFeedEvent('response', `
+          <div class="event-meta">
+            <span class="event-tag">RESPONSE</span>
+            <span class="event-source source-${src === 'telegram' ? 'telegram' : src === 'web' ? 'web' : 'cli'}">${esc(src)}</span>
+            <span class="event-time">${monTime(timestamp)}</span>
+          </div>
+          <div class="event-content" style="color:var(--muted);font-style:italic">Response sent via ${esc(src)}</div>
+        `);
+        refreshStatus();
+        refreshTasks();
+        refreshFacts();
+      },
+
+      error({ error, timestamp }) {
+        addFeedEvent('error', `
+          <div class="event-meta">
+            <span class="event-tag">ERROR</span>
+            <span class="event-time">${monTime(timestamp)}</span>
+          </div>
+          <div class="event-content">${esc(error)}</div>
+        `);
+      },
+    };
+
+    for (const [name, handler] of Object.entries(sseHandlers)) {
       es.addEventListener(name, (e) => {
-        try {
-          const data = JSON.parse(e.data);
-          if (handlers[name]) handlers[name](data);
-        } catch {}
+        try { handler(JSON.parse(e.data)); } catch (_) {}
       });
     }
   }
 
-  connect();
+  connectSSE();
 
-  // ── API CALLS ───────────────────────────────────────
+  // ── Monitor helpers ───────────────────────────────────
+  let feedAutoScroll = true;
+  const feed = document.getElementById('feed');
+  feed.addEventListener('scroll', () => {
+    feedAutoScroll = feed.scrollTop + feed.clientHeight >= feed.scrollHeight - 20;
+  });
+
+  function monTime(iso) {
+    return new Date(iso).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  function truncate(str, max) {
+    const s = String(str);
+    if (s.length <= max) return { text: esc(s), trunc: false };
+    return { text: esc(s.slice(0, max)), trunc: true, full: esc(s) };
+  }
+
+  function expander(id, fullText) {
+    const safeText = fullText.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+    return `<span class="truncated"> … (truncated)</span>
+      <button class="expand-btn" onclick="
+        document.getElementById('${id}').innerHTML = \`${safeText}\`;
+        this.previousElementSibling.remove(); this.remove();
+      ">Show full</button>`;
+  }
+
+  function addFeedEvent(type, html, cls = '') {
+    const placeholder = feed.querySelector('.ev-thinking[style]');
+    if (placeholder) placeholder.remove();
+    const div = document.createElement('div');
+    div.className = `event ev-${type}${cls ? ' ' + cls : ''}`;
+    div.innerHTML = html;
+    feed.appendChild(div);
+    if (feedAutoScroll) feed.scrollTop = feed.scrollHeight;
+  }
+
+  function clearFeed() {
+    feed.innerHTML = `<div class="event ev-thinking" style="opacity:0.5">
+      <div class="event-meta"><span class="event-tag">CLEARED</span></div>
+      <div class="event-content">Feed cleared. Waiting for activity…</div>
+    </div>`;
+  }
+
+  // ── API calls ─────────────────────────────────────────
   async function refreshStatus() {
     try {
       const r = await fetch('/api/status');
       const d = await r.json();
-      document.getElementById('stat-facts').textContent = d.factsCount;
+      document.getElementById('stat-facts').textContent  = d.factsCount;
       document.getElementById('stat-skills').textContent = d.skillsCount;
-      document.getElementById('stat-processes').textContent = d.processesCount;
-      document.getElementById('stat-tasks').textContent = d.activeTasksCount;
-    } catch {}
+      document.getElementById('stat-tasks').textContent  = d.activeTasksCount;
+      document.getElementById('mem-facts').textContent      = d.factsCount;
+      document.getElementById('mem-skills').textContent     = d.skillsCount;
+      document.getElementById('mem-processes').textContent  = d.processesCount;
+      document.getElementById('mem-tasks').textContent      = d.activeTasksCount;
+      const uptime = document.getElementById('uptime-display');
+      if (uptime) uptime.textContent = `Uptime: ${fmtUptime(d.uptime)}`;
+    } catch (_) {}
+  }
+
+  function fmtUptime(s) {
+    if (s < 60) return `${s}s`;
+    if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
+    return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
   }
 
   async function refreshTasks() {
@@ -430,30 +1408,26 @@
       const r = await fetch('/api/tasks/active');
       const tasks = await r.json();
       const el = document.getElementById('tasks-list');
-      if (tasks.length === 0) {
-        el.innerHTML = '<div class="empty">No active tasks</div>';
-        return;
-      }
+      if (!tasks.length) { el.innerHTML = '<div class="empty">No active tasks</div>'; return; }
       el.innerHTML = tasks.map(t => {
-        const lines = t.content.split('\n');
         const nameMatch = t.content.match(/# Task: (.+)/);
-        const name = nameMatch ? nameMatch[1] : t.file;
-        const subtasks = lines
+        const name = nameMatch ? nameMatch[1] : t.file.replace('.md', '');
+        const subtasks = t.content.split('\n')
           .filter(l => l.match(/^- \[[ x]\]/))
           .map(l => {
             const done = l.startsWith('- [x]');
             const text = l.replace(/^- \[[ x]\] /, '');
-            return `<div class="task-subtask ${done ? 'done' : ''}">
+            return `<div class="task-subtask${done ? ' done' : ''}">
               <span class="task-check">${done ? '✓' : '○'}</span>
-              <span>${escape(text)}</span>
+              <span>${esc(text)}</span>
             </div>`;
           }).join('');
         return `<div class="task-item">
-          <div class="task-name">${escape(name)}</div>
+          <div class="task-name">${esc(name)}</div>
           ${subtasks || '<div class="empty">No subtasks</div>'}
         </div>`;
       }).join('');
-    } catch {}
+    } catch (_) {}
   }
 
   async function refreshFacts() {
@@ -462,25 +1436,42 @@
       const text = await r.text();
       const el = document.getElementById('facts-list');
       const facts = text.split('\n').filter(l => l.trim().startsWith('-'));
-      if (facts.length === 0) {
-        el.innerHTML = '<div class="empty">No facts recorded</div>';
-        return;
-      }
-      el.innerHTML = facts.map(f => `<div class="fact-item">${escape(f.replace(/^-\s*/, ''))}</div>`).join('');
-    } catch {}
+      if (!facts.length) { el.innerHTML = '<div class="empty">No facts recorded</div>'; return; }
+      el.innerHTML = facts.map(f =>
+        `<div class="fact-item">${esc(f.replace(/^-\s*/, ''))}</div>`
+      ).join('');
+    } catch (_) {}
   }
 
-  function clearFeed() {
-    feed.innerHTML = '<div class="event ev-thinking" style="opacity:0.5"><div class="event-meta"><span class="event-tag">CLEARED</span></div><div class="event-content">Feed cleared. Waiting for activity…</div></div>';
+  // ── Settings ──────────────────────────────────────────
+  async function loadSettings() {
+    try {
+      const r = await fetch('/api/config');
+      const d = await r.json();
+      document.getElementById('cfg-url').textContent   = d.lmStudioUrl;
+      document.getElementById('cfg-model').textContent = d.model;
+      document.getElementById('lm-status-badge').innerHTML = `<span class="badge ok">● Running</span>`;
+      document.getElementById('telegram-badge').innerHTML = d.hasTelegram
+        ? `<span class="badge ok">● Active</span>`
+        : `<span class="badge warn">Not configured</span>`;
+    } catch (_) {
+      document.getElementById('lm-status-badge').innerHTML = `<span class="badge err">● Offline</span>`;
+    }
+    refreshStatus();
   }
 
-  // Initial load
+  function copyText(text, btn) {
+    navigator.clipboard.writeText(text)
+      .then(() => { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy', 2000); })
+      .catch(() => { btn.textContent = 'Failed'; setTimeout(() => btn.textContent = 'Copy', 2000); });
+  }
+
+  // ── Init ──────────────────────────────────────────────
   refreshStatus();
   refreshTasks();
   refreshFacts();
-
-  // Refresh sidebar every 10s
-  setInterval(() => { refreshStatus(); refreshTasks(); refreshFacts(); }, 10000);
+  setInterval(() => { refreshStatus(); refreshTasks(); refreshFacts(); }, 15000);
+  document.getElementById('chat-input').focus();
 </script>
 </body>
 </html>

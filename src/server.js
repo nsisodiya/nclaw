@@ -8,6 +8,12 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs').promises;
 const eventBus = require('./event_bus');
+const config = require('./config');
+
+let _runAgent = null;
+let webChatHistory = [];
+
+function setAgent(fn) { _runAgent = fn; }
 
 const app = express();
 app.use(express.json());
@@ -56,6 +62,34 @@ app.get('/events', (req, res) => {
     for (const event of AGENT_EVENTS) {
       eventBus.off(event, handlers[event]);
     }
+  });
+});
+
+// Chat API — web UI sends messages here
+app.post('/api/chat', async (req, res) => {
+  const { message } = req.body;
+  if (!message) return res.status(400).json({ error: 'message is required' });
+  if (!_runAgent) return res.status(503).json({ error: 'Agent not initialized. Make sure nclaw is running.' });
+  try {
+    const result = await _runAgent(message, webChatHistory, 'web');
+    webChatHistory = result.history;
+    res.json({ response: result.response });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/chat/clear', (req, res) => {
+  webChatHistory = [];
+  res.json({ ok: true });
+});
+
+// Config endpoint — exposes non-secret config to the UI
+app.get('/api/config', (req, res) => {
+  res.json({
+    lmStudioUrl: config.lmStudio.baseURL,
+    model: config.lmStudio.model,
+    hasTelegram: !!process.env.TELEGRAM_BOT_TOKEN,
   });
 });
 
@@ -124,4 +158,4 @@ function start(port = 3721) {
   });
 }
 
-module.exports = { start };
+module.exports = { start, setAgent };

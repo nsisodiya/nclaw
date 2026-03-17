@@ -79,6 +79,7 @@ program.action(async (options) => {
     try {
       const server = require('./server');
       await server.start(parseInt(options.port, 10));
+      server.setAgent(runAgent);
     } catch (e) {
       console.log(chalk.yellow(`[UI] Could not start: ${e.message}`));
     }
