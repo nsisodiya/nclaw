@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>nclaw — Activity Monitor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0d;
+      --surface: #161616;
+      --border: #2a2a2a;
+      --text: #e0e0e0;
+      --muted: #666;
+      --accent: #7c6af7;
+      --accent-dim: #2a2650;
+      --green: #34d399;
+      --red: #f87171;
+      --yellow: #fbbf24;
+      --blue: #60a5fa;
+      --cyan: #22d3ee;
+      --purple: #c084fc;
+    }
+
+    html, body { height: 100%; font-family: 'SF Mono', 'Fira Code', monospace; background: var(--bg); color: var(--text); font-size: 13px; }
+
+    /* ── LAYOUT ─────────────────────────────────────── */
+    .app { display: grid; grid-template-rows: 48px 1fr; height: 100vh; overflow: hidden; }
+
+    /* ── HEADER ──────────────────────────────────────── */
+    header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .logo { font-size: 16px; font-weight: 700; color: var(--accent); letter-spacing: 2px; }
+    .tagline { color: var(--muted); font-size: 11px; }
+    .spacer { flex: 1; }
+    .conn-indicator {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; color: var(--muted);
+    }
+    .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    .conn-dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .conn-dot.error { background: var(--red); }
+
+    /* stats in header */
+    .stats { display: flex; gap: 16px; }
+    .stat { text-align: center; }
+    .stat-val { font-size: 16px; font-weight: 700; color: var(--accent); }
+    .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+    /* ── MAIN AREA ───────────────────────────────────── */
+    .main { display: grid; grid-template-columns: 1fr 320px; overflow: hidden; }
+
+    /* ── ACTIVITY FEED ───────────────────────────────── */
+    .feed-panel {
+      display: flex; flex-direction: column;
+      border-right: 1px solid var(--border);
+    }
+    .panel-header {
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .btn-clear {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit;
+    }
+    .btn-clear:hover { border-color: var(--accent); color: var(--accent); }
+
+    #feed {
+      flex: 1; overflow-y: auto; padding: 8px 0;
+      scroll-behavior: smooth;
+    }
+
+    /* ── EVENT CARDS ──────────────────────────────────── */
+    .event {
+      padding: 8px 16px;
+      border-left: 3px solid transparent;
+      animation: fadeIn 0.15s ease;
+    }
+    .event:hover { background: rgba(255,255,255,0.02); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
+
+    .event-meta { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
+    .event-tag {
+      font-size: 10px; padding: 1px 6px; border-radius: 3px;
+      text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;
+    }
+    .event-source { font-size: 10px; color: var(--muted); }
+    .event-time { font-size: 10px; color: var(--muted); margin-left: auto; }
+    .event-content { line-height: 1.5; word-break: break-word; }
+    .event-content pre { white-space: pre-wrap; }
+
+    /* event type styles */
+    .ev-user_input  { border-color: var(--blue); }
+    .ev-user_input  .event-tag { background: #1e3a5f; color: var(--blue); }
+    .ev-user_input  .event-content { color: var(--blue); }
+
+    .ev-thinking    { border-color: var(--muted); }
+    .ev-thinking    .event-tag { background: #222; color: var(--muted); }
+    .ev-thinking    .event-content { color: var(--muted); font-style: italic; }
+
+    .ev-tool_call   { border-color: var(--yellow); }
+    .ev-tool_call   .event-tag { background: #3d2e00; color: var(--yellow); }
+    .ev-tool_call   .tool-name { color: var(--yellow); font-weight: 700; }
+    .ev-tool_call   .tool-args { color: #a0a0a0; margin-top: 2px; font-size: 12px; }
+
+    .ev-tool_result.success { border-color: var(--green); }
+    .ev-tool_result.success .event-tag { background: #0d2e1e; color: var(--green); }
+    .ev-tool_result.success .event-content { color: var(--green); }
+
+    .ev-tool_result.failure { border-color: var(--red); }
+    .ev-tool_result.failure .event-tag { background: #2e0d0d; color: var(--red); }
+    .ev-tool_result.failure .event-content { color: var(--red); }
+
+    .ev-response    { border-color: var(--accent); background: rgba(124,106,247,0.04); }
+    .ev-response    .event-tag { background: var(--accent-dim); color: var(--accent); }
+    .ev-response    .event-content { color: var(--text); }
+
+    .ev-error       { border-color: var(--red); }
+    .ev-error       .event-tag { background: #2e0d0d; color: var(--red); }
+    .ev-error       .event-content { color: var(--red); }
+
+    .truncated { color: var(--muted); font-size: 11px; font-style: italic; }
+    .expand-btn {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      padding: 1px 6px; border-radius: 3px; cursor: pointer; font-size: 10px;
+      margin-top: 4px; font-family: inherit;
+    }
+    .expand-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+    /* ── SIDEBAR ─────────────────────────────────────── */
+    .sidebar { display: flex; flex-direction: column; overflow: hidden; }
+
+    .sidebar-section {
+      border-bottom: 1px solid var(--border);
+      display: flex; flex-direction: column;
+    }
+    .sidebar-section.tasks { flex: 1; overflow: hidden; }
+    .sidebar-section:last-child { border-bottom: none; flex: 1; overflow: hidden; }
+
+    .sidebar-header {
+      padding: 8px 12px;
+      font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .sidebar-body {
+      padding: 8px 12px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    /* Task items */
+    .task-item { margin-bottom: 12px; padding: 8px; background: var(--surface); border-radius: 6px; border: 1px solid var(--border); }
+    .task-name { font-weight: 700; color: var(--cyan); font-size: 12px; margin-bottom: 4px; }
+    .task-subtask { display: flex; align-items: flex-start; gap: 6px; font-size: 11px; margin: 2px 0; color: var(--muted); }
+    .task-subtask.done { color: var(--green); text-decoration: line-through; }
+    .task-check { flex-shrink: 0; margin-top: 1px; }
+
+    /* Facts */
+    .fact-item { font-size: 11px; color: var(--muted); padding: 2px 0; border-bottom: 1px solid #1a1a1a; }
+    .fact-item::before { content: '•'; color: var(--accent); margin-right: 6px; }
+
+    /* Empty state */
+    .empty { color: var(--muted); font-size: 11px; font-style: italic; padding: 4px 0; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+    /* Source badge */
+    .source-cli { color: var(--accent); }
+    .source-telegram { color: #2aabee; }
+    .source-api { color: var(--green); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">NCLAW</div>
+    <div class="tagline">Activity Monitor</div>
+    <div class="stats">
+      <div class="stat"><div class="stat-val" id="stat-facts">0</div><div class="stat-label">Facts</div></div>
+      <div class="stat"><div class="stat-val" id="stat-skills">0</div><div class="stat-label">Skills</div></div>
+      <div class="stat"><div class="stat-val" id="stat-processes">0</div><div class="stat-label">Processes</div></div>
+      <div class="stat"><div class="stat-val" id="stat-tasks">0</div><div class="stat-label">Tasks</div></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="conn-indicator">
+      <div class="conn-dot" id="conn-dot"></div>
+      <span id="conn-status">Connecting…</span>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- ACTIVITY FEED -->
+    <div class="feed-panel">
+      <div class="panel-header">
+        <span>Live Activity</span>
+        <button class="btn-clear" onclick="clearFeed()">Clear</button>
+      </div>
+      <div id="feed">
+        <div class="event ev-thinking" style="opacity:0.5">
+          <div class="event-meta">
+            <span class="event-tag">READY</span>
+          </div>
+          <div class="event-content">Waiting for agent activity…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+
+      <!-- Active Tasks -->
+      <div class="sidebar-section tasks">
+        <div class="sidebar-header">Active Tasks</div>
+        <div class="sidebar-body" id="tasks-list">
+          <div class="empty">No active tasks</div>
+        </div>
+      </div>
+
+      <!-- Memory Facts -->
+      <div class="sidebar-section">
+        <div class="sidebar-header">Memory: Facts</div>
+        <div class="sidebar-body" id="facts-list">
+          <div class="empty">No facts recorded</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  let autoScroll = true;
+  const feed = document.getElementById('feed');
+
+  feed.addEventListener('scroll', () => {
+    autoScroll = feed.scrollTop + feed.clientHeight >= feed.scrollHeight - 20;
+  });
+
+  function scrollToBottom() {
+    if (autoScroll) feed.scrollTop = feed.scrollHeight;
+  }
+
+  function formatTime(iso) {
+    return new Date(iso).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  function sourceClass(src) {
+    if (src === 'telegram') return 'source-telegram';
+    if (src === 'api') return 'source-api';
+    return 'source-cli';
+  }
+
+  function escape(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function truncate(str, max = 300) {
+    const s = String(str);
+    if (s.length <= max) return { text: escape(s), truncated: false };
+    return { text: escape(s.slice(0, max)), truncated: true, full: escape(s) };
+  }
+
+  function addEvent(type, html, cls = '') {
+    // Remove "waiting" placeholder on first real event
+    const placeholder = feed.querySelector('.ev-thinking[style]');
+    if (placeholder) placeholder.remove();
+
+    const div = document.createElement('div');
+    div.className = `event ev-${type} ${cls}`;
+    div.innerHTML = html;
+    feed.appendChild(div);
+    scrollToBottom();
+  }
+
+  function makeExpander(id, fullText) {
+    return `<span class="truncated">… (truncated)</span>
+      <button class="expand-btn" onclick="
+        document.getElementById('${id}').innerHTML = \`${fullText.replace(/`/g,'\\`')}\`;
+        this.remove();
+      ">Show full</button>`;
+  }
+
+  // ── EVENT HANDLERS ─────────────────────────────────
+  const handlers = {
+
+    user_input({ input, source, timestamp }) {
+      const src = source || 'cli';
+      addEvent('user_input', `
+        <div class="event-meta">
+          <span class="event-tag">USER</span>
+          <span class="event-source ${sourceClass(src)}">${src}</span>
+          <span class="event-time">${formatTime(timestamp)}</span>
+        </div>
+        <div class="event-content">${escape(input)}</div>
+      `);
+    },
+
+    thinking({ step, source, timestamp }) {
+      addEvent('thinking', `
+        <div class="event-meta">
+          <span class="event-tag">THINK</span>
+          <span class="event-time">${formatTime(timestamp)}</span>
+        </div>
+        <div class="event-content">Step ${step} — reasoning…</div>
+      `);
+    },
+
+    tool_call({ toolName, args, timestamp, source }) {
+      const argsStr = JSON.stringify(args, null, 2);
+      const id = 'tc-' + Date.now();
+      const { text, truncated, full } = truncate(argsStr, 200);
+      addEvent('tool_call', `
+        <div class="event-meta">
+          <span class="event-tag">TOOL CALL</span>
+          <span class="event-time">${formatTime(timestamp)}</span>
+        </div>
+        <div class="tool-name">${escape(toolName)}</div>
+        <pre class="tool-args" id="${id}">${text}${truncated ? makeExpander(id, full) : ''}</pre>
+      `);
+    },
+
+    tool_result({ toolName, success, result, timestamp }) {
+      const cls = success ? 'success' : 'failure';
+      const label = success ? 'OK' : 'FAIL';
+      const preview = success
+        ? (result.data ? String(result.data).slice(0, 200) : 'success')
+        : (result.error || 'unknown error');
+      const id = 'tr-' + Date.now();
+      const { text, truncated, full } = truncate(preview, 200);
+      addEvent('tool_result', `
+        <div class="event-meta">
+          <span class="event-tag">${label}</span>
+          <span style="color:var(--muted);font-size:11px">${escape(toolName)}</span>
+          <span class="event-time">${formatTime(timestamp)}</span>
+        </div>
+        <pre class="event-content" id="${id}">${text}${truncated ? makeExpander(id, full) : ''}</pre>
+      `, cls);
+    },
+
+    response({ response, source, timestamp }) {
+      const src = source || 'cli';
+      const id = 'resp-' + Date.now();
+      const { text, truncated, full } = truncate(response, 500);
+      addEvent('response', `
+        <div class="event-meta">
+          <span class="event-tag">RESPONSE</span>
+          <span class="event-source ${sourceClass(src)}">${src}</span>
+          <span class="event-time">${formatTime(timestamp)}</span>
+        </div>
+        <pre class="event-content" id="${id}">${text}${truncated ? makeExpander(id, full) : ''}</pre>
+      `);
+      // Refresh stats after response
+      refreshStatus();
+      refreshTasks();
+      refreshFacts();
+    },
+
+    error({ error, source, timestamp }) {
+      addEvent('error', `
+        <div class="event-meta">
+          <span class="event-tag">ERROR</span>
+          <span class="event-time">${formatTime(timestamp)}</span>
+        </div>
+        <div class="event-content">${escape(error)}</div>
+      `);
+    },
+  };
+
+  // ── SSE CONNECTION ──────────────────────────────────
+  const dot = document.getElementById('conn-dot');
+  const statusEl = document.getElementById('conn-status');
+
+  function connect() {
+    const es = new EventSource('/events');
+
+    es.onopen = () => {
+      dot.className = 'conn-dot connected';
+      statusEl.textContent = 'Connected';
+    };
+
+    es.onerror = () => {
+      dot.className = 'conn-dot error';
+      statusEl.textContent = 'Reconnecting…';
+    };
+
+    const eventNames = ['user_input', 'thinking', 'tool_call', 'tool_result', 'response', 'error'];
+    for (const name of eventNames) {
+      es.addEventListener(name, (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (handlers[name]) handlers[name](data);
+        } catch {}
+      });
+    }
+  }
+
+  connect();
+
+  // ── API CALLS ───────────────────────────────────────
+  async function refreshStatus() {
+    try {
+      const r = await fetch('/api/status');
+      const d = await r.json();
+      document.getElementById('stat-facts').textContent = d.factsCount;
+      document.getElementById('stat-skills').textContent = d.skillsCount;
+      document.getElementById('stat-processes').textContent = d.processesCount;
+      document.getElementById('stat-tasks').textContent = d.activeTasksCount;
+    } catch {}
+  }
+
+  async function refreshTasks() {
+    try {
+      const r = await fetch('/api/tasks/active');
+      const tasks = await r.json();
+      const el = document.getElementById('tasks-list');
+      if (tasks.length === 0) {
+        el.innerHTML = '<div class="empty">No active tasks</div>';
+        return;
+      }
+      el.innerHTML = tasks.map(t => {
+        const lines = t.content.split('\n');
+        const nameMatch = t.content.match(/# Task: (.+)/);
+        const name = nameMatch ? nameMatch[1] : t.file;
+        const subtasks = lines
+          .filter(l => l.match(/^- \[[ x]\]/))
+          .map(l => {
+            const done = l.startsWith('- [x]');
+            const text = l.replace(/^- \[[ x]\] /, '');
+            return `<div class="task-subtask ${done ? 'done' : ''}">
+              <span class="task-check">${done ? '✓' : '○'}</span>
+              <span>${escape(text)}</span>
+            </div>`;
+          }).join('');
+        return `<div class="task-item">
+          <div class="task-name">${escape(name)}</div>
+          ${subtasks || '<div class="empty">No subtasks</div>'}
+        </div>`;
+      }).join('');
+    } catch {}
+  }
+
+  async function refreshFacts() {
+    try {
+      const r = await fetch('/api/memory/facts');
+      const text = await r.text();
+      const el = document.getElementById('facts-list');
+      const facts = text.split('\n').filter(l => l.trim().startsWith('-'));
+      if (facts.length === 0) {
+        el.innerHTML = '<div class="empty">No facts recorded</div>';
+        return;
+      }
+      el.innerHTML = facts.map(f => `<div class="fact-item">${escape(f.replace(/^-\s*/, ''))}</div>`).join('');
+    } catch {}
+  }
+
+  function clearFeed() {
+    feed.innerHTML = '<div class="event ev-thinking" style="opacity:0.5"><div class="event-meta"><span class="event-tag">CLEARED</span></div><div class="event-content">Feed cleared. Waiting for activity…</div></div>';
+  }
+
+  // Initial load
+  refreshStatus();
+  refreshTasks();
+  refreshFacts();
+
+  // Refresh sidebar every 10s
+  setInterval(() => { refreshStatus(); refreshTasks(); refreshFacts(); }, 10000);
+</script>
+</body>
+</html>

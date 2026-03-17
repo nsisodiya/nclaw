@@ -1,57 +1,76 @@
 const { OpenAI } = require('openai');
-const fs = require('fs').promises;
-const path = require('path');
 const config = require('./config');
-const terminalSkill = require('./tools/terminal_skill');
-const fsSkill = require('./tools/fs_skill');
-const multiReplaceSkill = require('./tools/multi_replace_file_content');
 const chalk = require('chalk');
+const contextLoader = require('./context_loader');
+const eventBus = require('./event_bus');
+
+// Tools
+const terminalSkill      = require('./tools/terminal_skill');
+const fsSkill            = require('./tools/fs_skill');
+const multiReplaceSkill  = require('./tools/multi_replace_file_content');
+const memorySkill        = require('./tools/memory_skill');
+const taskSkill          = require('./tools/task_skill');
+const clipboardSkill     = require('./tools/clipboard_skill');
+const notifySkill        = require('./tools/notify_skill');
+const gitSkill           = require('./tools/git_skill');
+const projectSkill       = require('./tools/project_skill');
+const webSkill           = require('./tools/web_skill');
 
 const openai = new OpenAI({
   baseURL: config.lmStudio.baseURL,
-  apiKey: config.lmStudio.apiKey,
+  apiKey:  config.lmStudio.apiKey,
 });
 
 const tools = [
   terminalSkill,
   fsSkill,
-  multiReplaceSkill
+  multiReplaceSkill,
+  memorySkill,
+  taskSkill,
+  clipboardSkill,
+  notifySkill,
+  gitSkill,
+  projectSkill,
+  webSkill,
 ];
 
 const toolDefinitions = tools.map(t => t.definition);
 
-async function runAgent(userInput, history = []) {
-  const soul = await fs.readFile(path.join(__dirname, '../soul.md'), 'utf8');
-  
-  // ReAct Prompt injection
-  const reactPrompt = `
-Additional Instructions for Autonomy (ReAct):
-1. Think step-by-step. If the user asks for a complex task, break it down.
-2. If a tool fails (e.g., a terminal command returns an error or exit code > 0), DO NOT just give up. Read the error, understand what went wrong, and use your tools to fix it. Loop until you succeed.
-3. Be precise with file edits using the 'multi_replace_file_content' tool.
-`;
+/**
+ * Run the agent for one user turn.
+ * @param {string} userInput
+ * @param {Array}  history   - Previous messages (OpenAI format)
+ * @param {string} source    - 'cli' | 'telegram' | 'api'
+ * @returns {{ response: string, history: Array }}
+ */
+async function runAgent(userInput, history = [], source = 'cli') {
+  // Build system prompt fresh each call (picks up memory/task changes)
+  const systemPrompt = await contextLoader.build();
 
   const messages = [
-    { role: "system", content: soul + reactPrompt },
+    { role: 'system', content: systemPrompt },
     ...history,
-    { role: "user", content: userInput }
+    { role: 'user', content: userInput },
   ];
 
+  eventBus.emit('agent:user_input', { input: userInput, source });
+
   let completed = false;
-  let finalResponse = "";
+  let finalResponse = '';
   let loopCount = 0;
-  const MAX_LOOPS = 15; // Safeguard against true infinite loops
+  const MAX_LOOPS = 15;
 
   while (!completed && loopCount < MAX_LOOPS) {
     loopCount++;
+    eventBus.emit('agent:thinking', { step: loopCount, source });
     console.log(chalk.blue(`\n[nclaw Thinking... (Step ${loopCount})]`));
-    
+
     try {
       const response = await openai.chat.completions.create({
-        model: config.lmStudio.model,
-        messages: messages,
-        tools: toolDefinitions.map(def => ({ type: "function", function: def })),
-        tool_choice: "auto",
+        model:       config.lmStudio.model,
+        messages,
+        tools:       toolDefinitions.map(def => ({ type: 'function', function: def })),
+        tool_choice: 'auto',
       });
 
       const message = response.choices[0].message;
@@ -63,27 +82,23 @@ Additional Instructions for Autonomy (ReAct):
         for (const toolCall of message.tool_calls) {
           const toolName = toolCall.function.name;
           let toolArgs;
+
           try {
             toolArgs = JSON.parse(toolCall.function.arguments);
           } catch (e) {
-            console.log(chalk.red(`[Error parsing tool arguments: ${e.message}]`));
-            messages.push({
-              role: "tool",
-              tool_call_id: toolCall.id,
-              name: toolName,
-              content: JSON.stringify({ success: false, error: "Invalid JSON arguments provided." }),
-            });
+            const errResult = { success: false, error: 'Invalid JSON arguments.' };
+            eventBus.emit('agent:tool_result', { toolName, toolCallId: toolCall.id, success: false, result: errResult, source });
+            messages.push({ role: 'tool', tool_call_id: toolCall.id, name: toolName, content: JSON.stringify(errResult) });
             continue;
           }
-          
-          console.log(chalk.yellow(`[nclaw Executing Tool: ${toolName}]`));
-          
-          if(toolName === 'execute_command') {
-            console.log(chalk.gray(`> ${toolArgs.command}`));
+
+          eventBus.emit('agent:tool_call', { toolName, args: toolArgs, toolCallId: toolCall.id, source });
+          console.log(chalk.yellow(`[Tool: ${toolName}]`));
+
+          if (toolName === 'execute_command') {
+            console.log(chalk.gray(`  > ${toolArgs.command}`));
           } else {
-             // abbreviate large arguments for logging
-             const logArgs = JSON.stringify(toolArgs).substring(0, 150) + "...";
-            console.log(chalk.gray(`Args: ${logArgs}`));
+            console.log(chalk.gray(`  ${JSON.stringify(toolArgs).slice(0, 120)}…`));
           }
 
           const tool = tools.find(t => t.definition.name === toolName);
@@ -91,42 +106,46 @@ Additional Instructions for Autonomy (ReAct):
           if (tool) {
             result = await tool.handler(toolArgs);
           } else {
-            result = { success: false, error: "Tool not found" };
+            result = { success: false, error: `Tool not found: ${toolName}` };
           }
+
+          eventBus.emit('agent:tool_result', { toolName, toolCallId: toolCall.id, success: result.success, result, source });
 
           if (result.success) {
-            console.log(chalk.green(`[Tool Result: Success]`));
+            console.log(chalk.green(`  [OK]`));
           } else {
-             console.log(chalk.red(`[Tool Result: Failed - ${result.error}]`));
-             console.log(chalk.magenta(`[nclaw Notice: Agent will attempt to self-heal and retry...]`));
+            console.log(chalk.red(`  [FAIL] ${result.error}`));
+            console.log(chalk.magenta(`  [Agent will self-heal and retry…]`));
           }
 
-          messages.push({
-            role: "tool",
-            tool_call_id: toolCall.id,
-            name: toolName,
-            content: JSON.stringify(result),
-          });
+          messages.push({ role: 'tool', tool_call_id: toolCall.id, name: toolName, content: JSON.stringify(result) });
         }
-        
-      } else if (message.content && message.content.trim().length > 0) {
+
+      } else if (message.content && message.content.trim()) {
         finalResponse = message.content;
         completed = true;
+        eventBus.emit('agent:response', { response: finalResponse, source });
+
       } else {
-        finalResponse = "[Empty response from model. Task concluded or aborted.]";
+        finalResponse = '[Empty response from model. Task may be complete.]';
         completed = true;
+        eventBus.emit('agent:response', { response: finalResponse, source });
       }
+
     } catch (e) {
-      console.log(chalk.red(`[Agent Loop Error: ${e.message}]`));
-      finalResponse = `Agent crashed during thinking: ${e.message}`;
+      console.log(chalk.red(`[Agent Error: ${e.message}]`));
+      eventBus.emit('agent:error', { error: e.message, source });
+      finalResponse = `Agent error: ${e.message}`;
       completed = true;
     }
   }
 
-  if (loopCount >= MAX_LOOPS) {
-      finalResponse = `[nclaw aborted: Reached maximum thinking steps (${MAX_LOOPS}). Ask me to continue if needed.]`;
+  if (loopCount >= MAX_LOOPS && !completed) {
+    finalResponse = `[nclaw reached max steps (${MAX_LOOPS}). Ask me to continue if needed.]`;
+    eventBus.emit('agent:response', { response: finalResponse, source });
   }
 
+  // Return history without the system message
   return { response: finalResponse, history: messages.slice(1) };
 }
 
