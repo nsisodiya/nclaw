@@ -127,9 +127,8 @@ async function runAgent(userInput, history = [], source = 'cli') {
         eventBus.emit('agent:response', { response: finalResponse, source });
 
       } else {
-        finalResponse = '[Empty response from model. Task may be complete.]';
-        completed = true;
-        eventBus.emit('agent:response', { response: finalResponse, source });
+        // Model returned empty content — nudge it to give a final answer
+        messages.push({ role: 'user', content: 'Please provide your final answer based on the tool results above.' });
       }
 
     } catch (e) {
