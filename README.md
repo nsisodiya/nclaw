@@ -1,38 +1,62 @@
 # nclaw
 
-A local AI agent inspired by OpenClaw, powered by LM Studio and Qwen 3.5 9b.
+A markdown-driven local AI agent for MacBook productivity, powered by LM Studio.
 
-## Features
-- **Local First**: Runs entirely on your hardware via LM Studio.
-- **Terminal Skill**: Execute shell commands.
-- **FileSystem Skill**: Read, write, list, and delete files.
-- **Agentic Loop**: Reasons and uses tools autonomously to complete tasks.
+## Install
 
-## Prerequisites
-- **Node.js**: Version 18+ recommended.
-- **LM Studio**: Running with `qwen/qwen3.5-9b` (or similar) loaded and the local server enabled (default: `http://localhost:1234/v1`).
-
-## Setup
-1. Clone the repository.
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. (Optional) Create a `.env` file if your LM Studio URL is different:
-   ```env
-   LM_STUDIO_URL=http://localhost:1234/v1
-   ```
-
-## Usage
-Start the agent:
+**Via npm (recommended):**
 ```bash
-node src/cli.js
+npm install -g nclaw
 ```
 
-### Example Commands
-- "List the files in this directory."
-- "Create a new file named notes.md with some project ideas."
-- "What is the current time and date?" (Using terminal `date`)
+**Via curl:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/nsisodiya/nclaw/refs/heads/main/install.sh | bash
+```
+
+## Prerequisites
+
+- **Node.js** 18+
+- **LM Studio** running with a model loaded and the local server enabled (default: `http://localhost:1234/v1`)
+
+## Usage
+
+```bash
+nclaw
+```
+
+This starts the agent and opens the UI at **http://localhost:3721**.
+
+## Configuration
+
+Create a `.env` file in your home directory or wherever you run nclaw:
+
+```env
+LM_STUDIO_BASE_URL=http://localhost:1234/v1
+LM_STUDIO_MODEL=qwen/qwen3.5-9b
+TELEGRAM_BOT_TOKEN=your_token_here   # optional
+```
+
+## Upgrading
+
+**One-click:** Open the UI → Settings → click **↑ Upgrade to latest**
+
+**Or via terminal:**
+```bash
+npm install -g nclaw
+```
+
+Every push to `main` is automatically published — you always get the latest when you upgrade.
+
+## Features
+
+- Local-first: all processing runs on your hardware via LM Studio
+- ReAct agentic loop with 10 built-in tools
+- Markdown-driven skills & processes in `~/.nclaw/`
+- Persistent memory across sessions
+- Telegram bot integration (no public server needed)
+- Real-time activity monitor UI with streaming output
 
 ## License
+
 MIT

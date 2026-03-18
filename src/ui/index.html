@@ -1,1195 +1,2810 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>nclaw</title>
-  <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>nclaw</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-    :root {
-      --bg:          #faf9f7;
-      --surface:     #f3f1ee;
-      --border:      #e5e2dc;
-      --text:        #1a1915;
-      --muted:       #8c8880;
-      --accent:      #d97706;
-      --accent-dim:  #fef3c7;
-      --accent-dark: #b45309;
-      --green:       #16a34a;
-      --red:         #dc2626;
-      --yellow:      #b45309;
-      --blue:        #2563eb;
-      --cyan:        #0891b2;
-    }
+      :root {
+        --bg: #faf9f7;
+        --surface: #f3f1ee;
+        --border: #e5e2dc;
+        --text: #1a1915;
+        --muted: #8c8880;
+        --accent: #d97706;
+        --accent-dim: #fef3c7;
+        --accent-dark: #b45309;
+        --green: #16a34a;
+        --red: #dc2626;
+        --yellow: #b45309;
+        --blue: #2563eb;
+        --cyan: #0891b2;
+        --purple: #7c3aed;
+      }
 
-    html, body { height: 100%; font-family: -apple-system, 'Inter', 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+      html,
+      body {
+        height: 100%;
+        font-family: -apple-system, 'Inter', 'Segoe UI', sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        font-size: 14px;
+        line-height: 1.5;
+      }
 
-    /* ── APP LAYOUT ─────────────────────────────────────── */
-    .app {
-      display: grid;
-      grid-template-columns: 56px 1fr;
-      height: 100vh;
-      overflow: hidden;
-    }
+      /* ── APP LAYOUT ─────────────────────────────────────── */
+      .app {
+        display: grid;
+        grid-template-columns: 56px 1fr;
+        height: 100vh;
+        overflow: hidden;
+      }
 
-    /* ── LEFT NAV ───────────────────────────────────────── */
-    .nav {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 0 0 12px;
-      background: var(--surface);
-      border-right: 1px solid var(--border);
-      gap: 2px;
-      overflow: hidden;
-    }
+      /* ── LEFT NAV ───────────────────────────────────────── */
+      .nav {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 0 0 12px;
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        gap: 2px;
+        overflow: hidden;
+      }
+      .nav-logo {
+        font-size: 15px;
+        font-weight: 900;
+        color: var(--accent);
+        letter-spacing: 1px;
+        width: 100%;
+        text-align: center;
+        padding: 14px 0 13px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 6px;
+        flex-shrink: 0;
+      }
+      .nav-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition:
+          background 0.15s,
+          color 0.15s;
+        flex-shrink: 0;
+      }
+      .nav-btn svg {
+        width: 17px;
+        height: 17px;
+        stroke-width: 1.8;
+      }
+      .nav-btn:hover {
+        background: var(--border);
+        color: var(--text);
+      }
+      .nav-btn.active {
+        background: var(--accent-dim);
+        color: var(--accent);
+      }
+      .nav-spacer {
+        flex: 1;
+      }
+      .nav-conn-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--muted);
+        transition:
+          background 0.3s,
+          box-shadow 0.3s;
+        flex-shrink: 0;
+      }
+      .nav-conn-dot.connected {
+        background: var(--green);
+        box-shadow: 0 0 6px var(--green);
+      }
+      .nav-conn-dot.error {
+        background: var(--red);
+      }
 
-    .nav-logo {
-      font-size: 15px;
-      font-weight: 900;
-      color: var(--accent);
-      letter-spacing: 1px;
-      width: 100%;
-      text-align: center;
-      padding: 14px 0 13px;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 6px;
-      flex-shrink: 0;
-    }
+      /* ── MAIN ───────────────────────────────────────────── */
+      .main {
+        display: grid;
+        grid-template-rows: 48px 1fr;
+        overflow: hidden;
+        min-height: 0;
+      }
 
-    .nav-btn {
-      width: 40px;
-      height: 40px;
-      border-radius: 8px;
-      border: none;
-      background: transparent;
-      color: var(--muted);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.15s, color 0.15s;
-      flex-shrink: 0;
-    }
-    .nav-btn svg { width: 17px; height: 17px; stroke-width: 1.8; }
-    .nav-btn:hover { background: var(--border); color: var(--text); }
-    .nav-btn.active { background: var(--accent-dim); color: var(--accent); }
+      /* ── HEADER ─────────────────────────────────────────── */
+      header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 0 20px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
+        flex-shrink: 0;
+      }
+      .header-title {
+        font-weight: 700;
+        font-size: 14px;
+        color: var(--text);
+      }
+      .header-stats {
+        display: flex;
+        gap: 14px;
+        margin-left: 4px;
+      }
+      .stat {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .stat-val {
+        font-weight: 700;
+        color: var(--accent);
+        font-size: 13px;
+      }
+      .header-spacer {
+        flex: 1;
+      }
+      /* Token counter in header */
+      .header-tokens {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        font-size: 11px;
+        color: var(--muted);
+        padding: 3px 10px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+      }
+      .htoken {
+        display: flex;
+        gap: 3px;
+        align-items: center;
+      }
+      .htoken-val {
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: var(--text);
+      }
+      .htoken-val.accent {
+        color: var(--accent);
+      }
+      .conn-status {
+        font-size: 11px;
+        color: var(--muted);
+      }
 
-    .nav-spacer { flex: 1; }
+      /* ── VIEWS ──────────────────────────────────────────── */
+      .view {
+        overflow: hidden;
+        min-height: 0;
+      }
+      .view.hidden {
+        display: none !important;
+      }
 
-    .nav-conn-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--muted);
-      transition: background 0.3s, box-shadow 0.3s;
-      flex-shrink: 0;
-    }
-    .nav-conn-dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
-    .nav-conn-dot.error     { background: var(--red); }
-
-    /* ── MAIN ───────────────────────────────────────────── */
-    .main {
-      display: grid;
-      grid-template-rows: 48px 1fr;
-      overflow: hidden;
-      min-height: 0;
-    }
-
-    /* ── HEADER ─────────────────────────────────────────── */
-    header {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 0 20px;
-      border-bottom: 1px solid var(--border);
-      background: var(--surface);
-      flex-shrink: 0;
-    }
-    .header-title { font-weight: 700; font-size: 14px; color: var(--text); }
-    .header-stats { display: flex; gap: 16px; margin-left: 4px; }
-    .stat { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
-    .stat-val { font-weight: 700; color: var(--accent); font-size: 13px; }
-    .header-spacer { flex: 1; }
-    .conn-status { font-size: 11px; color: var(--muted); }
-
-    /* ── VIEWS ──────────────────────────────────────────── */
-    .view { overflow: hidden; min-height: 0; }
-    .view.hidden { display: none !important; }
-
-    /* ═══════════════════════════════════════════════════════
+      /* ═══════════════════════════════════════════════════════
        CHAT VIEW
     ═══════════════════════════════════════════════════════ */
-    #view-chat {
-      display: grid;
-      grid-template-rows: 1fr auto;
-      height: 100%;
-    }
+      #view-chat {
+        display: grid;
+        grid-template-rows: 1fr auto;
+        height: 100%;
+      }
 
-    /* Messages area */
-    .chat-messages {
-      overflow-y: auto;
-      padding: 28px 24px 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-      scroll-behavior: smooth;
-    }
+      .chat-messages {
+        overflow-y: auto;
+        padding: 28px 24px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        scroll-behavior: smooth;
+      }
+      .chat-welcome {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+        min-height: 360px;
+        gap: 12px;
+        text-align: center;
+        padding: 40px;
+        color: var(--muted);
+        animation: fadeIn 0.3s ease;
+      }
+      .welcome-logo {
+        font-size: 36px;
+        font-weight: 900;
+        color: var(--accent);
+        opacity: 0.25;
+        letter-spacing: 6px;
+        margin-bottom: 4px;
+      }
+      .chat-welcome h3 {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--text);
+      }
+      .chat-welcome p {
+        font-size: 13px;
+        max-width: 380px;
+        line-height: 1.6;
+      }
+      .example-prompts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        margin-top: 12px;
+      }
+      .example-prompt {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 6px 16px;
+        font-size: 12px;
+        color: var(--text);
+        cursor: pointer;
+        transition: all 0.15s;
+        font-family: inherit;
+      }
+      .example-prompt:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        background: var(--accent-dim);
+      }
 
-    /* Welcome screen */
-    .chat-welcome {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      flex: 1;
-      min-height: 360px;
-      gap: 12px;
-      text-align: center;
-      padding: 40px;
-      color: var(--muted);
-      animation: fadeIn 0.3s ease;
-    }
-    .welcome-logo {
-      font-size: 36px;
-      font-weight: 900;
-      color: var(--accent);
-      opacity: 0.25;
-      letter-spacing: 6px;
-      margin-bottom: 4px;
-    }
-    .chat-welcome h3 { font-size: 20px; font-weight: 600; color: var(--text); }
-    .chat-welcome p  { font-size: 13px; max-width: 380px; line-height: 1.6; }
-    .example-prompts {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      justify-content: center;
-      margin-top: 12px;
-    }
-    .example-prompt {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 6px 16px;
-      font-size: 12px;
-      color: var(--text);
-      cursor: pointer;
-      transition: all 0.15s;
-      font-family: inherit;
-    }
-    .example-prompt:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-      background: var(--accent-dim);
-    }
+      /* Message layout */
+      .msg {
+        display: flex;
+        gap: 10px;
+        animation: msgIn 0.2s ease;
+        max-width: 820px;
+      }
+      .msg.user {
+        flex-direction: row-reverse;
+        align-self: flex-end;
+      }
+      .msg.agent {
+        align-self: flex-start;
+      }
 
-    /* Message layout */
-    .msg {
-      display: flex;
-      gap: 10px;
-      animation: msgIn 0.2s ease;
-      max-width: 820px;
-    }
-    .msg.user { flex-direction: row-reverse; align-self: flex-end; }
-    .msg.agent { align-self: flex-start; }
+      @keyframes msgIn {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
 
-    @keyframes msgIn  { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      .msg-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 800;
+        margin-top: 2px;
+        letter-spacing: 0.5px;
+      }
+      .msg.user .msg-avatar {
+        background: var(--accent);
+        color: white;
+      }
+      .msg.agent .msg-avatar {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--accent);
+      }
+      .msg-body {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        max-width: calc(100% - 38px);
+      }
 
-    .msg-avatar {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      font-weight: 800;
-      margin-top: 2px;
-      letter-spacing: 0.5px;
-    }
-    .msg.user  .msg-avatar { background: var(--accent); color: white; }
-    .msg.agent .msg-avatar { background: var(--surface); border: 1px solid var(--border); color: var(--accent); }
+      /* Thinking block (inside streaming bubble) */
+      .think-wrap {
+        margin-bottom: 6px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        font-size: 12px;
+      }
+      .think-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 10px;
+        background: var(--surface);
+        cursor: pointer;
+        user-select: none;
+        color: var(--muted);
+      }
+      .think-header:hover {
+        background: var(--border);
+      }
+      .think-chevron {
+        margin-left: auto;
+        font-size: 9px;
+        transition: transform 0.2s;
+      }
+      .think-header.open .think-chevron {
+        transform: rotate(180deg);
+      }
+      .think-body {
+        display: none;
+        padding: 8px 10px;
+        background: var(--bg);
+        color: var(--muted);
+        font-style: italic;
+        white-space: pre-wrap;
+        font-family: 'SF Mono', Menlo, monospace;
+        font-size: 11px;
+        max-height: 180px;
+        overflow-y: auto;
+      }
+      .think-header.open + .think-body {
+        display: block;
+      }
 
-    .msg-body { display: flex; flex-direction: column; gap: 4px; max-width: calc(100% - 38px); }
+      /* Stream cursor */
+      .stream-cursor {
+        display: inline-block;
+        width: 2px;
+        height: 1em;
+        background: var(--accent);
+        vertical-align: text-bottom;
+        margin-left: 2px;
+        animation: blink 0.8s step-end infinite;
+      }
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0;
+        }
+      }
 
-    /* Tool chips (shown above agent message) */
-    .msg-tools { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 2px; }
-    .tool-chip {
-      font-size: 10px;
-      padding: 2px 8px;
-      border-radius: 10px;
-      background: var(--accent-dim);
-      color: var(--accent-dark);
-      border: 1px solid rgba(217,119,6,0.15);
-      font-family: 'SF Mono', Menlo, monospace;
-    }
+      /* Token badge on agent messages */
+      .msg-token-badge {
+        font-size: 10px;
+        color: var(--muted);
+        padding: 1px 6px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        font-variant-numeric: tabular-nums;
+        align-self: flex-start;
+      }
 
-    /* Bubbles */
-    .msg-bubble {
-      padding: 10px 14px;
-      border-radius: 12px;
-      line-height: 1.65;
-      word-break: break-word;
-      overflow-wrap: break-word;
-    }
-    .msg.user  .msg-bubble { background: var(--accent); color: white; border-radius: 14px 4px 14px 14px; }
-    .msg.agent .msg-bubble { background: var(--surface); border: 1px solid var(--border); border-radius: 4px 14px 14px 14px; color: var(--text); }
+      /* Tool chips */
+      .msg-tools {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: 0 2px;
+      }
+      .tool-chip {
+        font-size: 10px;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background: var(--accent-dim);
+        color: var(--accent-dark);
+        border: 1px solid rgba(217, 119, 6, 0.15);
+        font-family: 'SF Mono', Menlo, monospace;
+      }
 
-    .msg-time { font-size: 10px; color: var(--muted); padding: 0 3px; }
-    .msg.user .msg-time { text-align: right; }
+      /* Bubbles */
+      .msg-bubble {
+        padding: 10px 14px;
+        border-radius: 12px;
+        line-height: 1.65;
+        word-break: break-word;
+        overflow-wrap: break-word;
+      }
+      .msg.user .msg-bubble {
+        background: var(--accent);
+        color: white;
+        border-radius: 14px 4px 14px 14px;
+      }
+      .msg.agent .msg-bubble {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 4px 14px 14px 14px;
+        color: var(--text);
+      }
+      .msg-time {
+        font-size: 10px;
+        color: var(--muted);
+        padding: 0 3px;
+      }
+      .msg.user .msg-time {
+        text-align: right;
+      }
 
-    /* Markdown in agent bubbles */
-    .msg.agent .msg-bubble p              { margin: 0 0 10px; }
-    .msg.agent .msg-bubble p:last-child   { margin: 0; }
-    .msg.agent .msg-bubble h1             { font-size: 1.15em; margin: 14px 0 6px; }
-    .msg.agent .msg-bubble h2             { font-size: 1.05em; margin: 12px 0 5px; }
-    .msg.agent .msg-bubble h3             { font-size: 0.95em; margin: 10px 0 4px; font-weight: 700; }
-    .msg.agent .msg-bubble ul,
-    .msg.agent .msg-bubble ol             { padding-left: 20px; margin: 6px 0; }
-    .msg.agent .msg-bubble li             { margin: 3px 0; }
-    .msg.agent .msg-bubble code           { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 3px; font-family: 'SF Mono', Menlo, monospace; font-size: 0.85em; }
-    .msg.agent .msg-bubble pre            { background: #1c1a17; border-radius: 8px; padding: 12px 14px; overflow-x: auto; margin: 8px 0; position: relative; }
-    .msg.agent .msg-bubble pre code       { background: transparent; padding: 0; color: #e5e2dc; font-size: 0.85em; }
-    .msg.agent .msg-bubble blockquote     { border-left: 3px solid var(--border); padding-left: 12px; margin: 6px 0; color: var(--muted); font-style: italic; }
-    .msg.agent .msg-bubble table          { border-collapse: collapse; width: 100%; font-size: 0.9em; margin: 8px 0; }
-    .msg.agent .msg-bubble th,
-    .msg.agent .msg-bubble td             { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
-    .msg.agent .msg-bubble th             { background: var(--bg); font-weight: 600; }
-    .msg.agent .msg-bubble a              { color: var(--blue); text-decoration: underline; }
-    .msg.agent .msg-bubble hr             { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
-    .msg.agent .msg-bubble strong         { font-weight: 700; }
-    .msg.user  .msg-bubble code           { background: rgba(255,255,255,0.2); }
+      /* Markdown */
+      .msg.agent .msg-bubble p {
+        margin: 0 0 10px;
+      }
+      .msg.agent .msg-bubble p:last-child {
+        margin: 0;
+      }
+      .msg.agent .msg-bubble h1 {
+        font-size: 1.15em;
+        margin: 14px 0 6px;
+      }
+      .msg.agent .msg-bubble h2 {
+        font-size: 1.05em;
+        margin: 12px 0 5px;
+      }
+      .msg.agent .msg-bubble h3 {
+        font-size: 0.95em;
+        margin: 10px 0 4px;
+        font-weight: 700;
+      }
+      .msg.agent .msg-bubble ul,
+      .msg.agent .msg-bubble ol {
+        padding-left: 20px;
+        margin: 6px 0;
+      }
+      .msg.agent .msg-bubble li {
+        margin: 3px 0;
+      }
+      .msg.agent .msg-bubble code {
+        background: rgba(0, 0, 0, 0.06);
+        padding: 1px 5px;
+        border-radius: 3px;
+        font-family: 'SF Mono', Menlo, monospace;
+        font-size: 0.85em;
+      }
+      .msg.agent .msg-bubble pre {
+        background: #1c1a17;
+        border-radius: 8px;
+        padding: 12px 14px;
+        overflow-x: auto;
+        margin: 8px 0;
+        position: relative;
+      }
+      .msg.agent .msg-bubble pre code {
+        background: transparent;
+        padding: 0;
+        color: #e5e2dc;
+        font-size: 0.85em;
+      }
+      .msg.agent .msg-bubble blockquote {
+        border-left: 3px solid var(--border);
+        padding-left: 12px;
+        margin: 6px 0;
+        color: var(--muted);
+        font-style: italic;
+      }
+      .msg.agent .msg-bubble table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 0.9em;
+        margin: 8px 0;
+      }
+      .msg.agent .msg-bubble th,
+      .msg.agent .msg-bubble td {
+        border: 1px solid var(--border);
+        padding: 6px 10px;
+        text-align: left;
+      }
+      .msg.agent .msg-bubble th {
+        background: var(--bg);
+        font-weight: 600;
+      }
+      .msg.agent .msg-bubble a {
+        color: var(--blue);
+        text-decoration: underline;
+      }
+      .msg.agent .msg-bubble hr {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 12px 0;
+      }
+      .msg.agent .msg-bubble strong {
+        font-weight: 700;
+      }
+      .msg.user .msg-bubble code {
+        background: rgba(255, 255, 255, 0.2);
+      }
+      .copy-code-btn {
+        position: absolute;
+        top: 7px;
+        right: 8px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.55);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 10px;
+        cursor: pointer;
+        font-family: inherit;
+        transition: all 0.15s;
+      }
+      .copy-code-btn:hover {
+        background: rgba(255, 255, 255, 0.18);
+        color: white;
+      }
 
-    /* Copy button on code blocks */
-    .copy-code-btn {
-      position: absolute;
-      top: 7px; right: 8px;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.12);
-      color: rgba(255,255,255,0.55);
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 10px;
-      cursor: pointer;
-      font-family: inherit;
-      transition: all 0.15s;
-    }
-    .copy-code-btn:hover { background: rgba(255,255,255,0.18); color: white; }
+      /* Typing indicator */
+      .msg-typing {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        animation: msgIn 0.2s ease;
+      }
+      .typing-bubble {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 11px 14px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 4px 14px 14px 14px;
+        color: var(--muted);
+        font-size: 12px;
+        min-height: 42px;
+      }
+      .typing-dots {
+        display: flex;
+        gap: 3px;
+      }
+      .typing-dots span {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--muted);
+        animation: dot-bounce 1.2s ease-in-out infinite;
+      }
+      .typing-dots span:nth-child(2) {
+        animation-delay: 0.18s;
+      }
+      .typing-dots span:nth-child(3) {
+        animation-delay: 0.36s;
+      }
+      @keyframes dot-bounce {
+        0%,
+        80%,
+        100% {
+          transform: scale(0.6);
+          opacity: 0.4;
+        }
+        40% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
 
-    /* Typing indicator */
-    .msg-typing { display: flex; gap: 10px; align-items: flex-start; animation: msgIn 0.2s ease; }
-    .typing-bubble {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 11px 14px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 4px 14px 14px 14px;
-      color: var(--muted);
-      font-size: 12px;
-      min-height: 42px;
-    }
-    .typing-dots { display: flex; gap: 3px; }
-    .typing-dots span {
-      width: 5px; height: 5px;
-      border-radius: 50%;
-      background: var(--muted);
-      animation: dot-bounce 1.2s ease-in-out infinite;
-    }
-    .typing-dots span:nth-child(2) { animation-delay: 0.18s; }
-    .typing-dots span:nth-child(3) { animation-delay: 0.36s; }
-    @keyframes dot-bounce {
-      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-      40%           { transform: scale(1);   opacity: 1;   }
-    }
+      /* Chat input */
+      .chat-input-area {
+        border-top: 1px solid var(--border);
+        padding: 12px 20px 14px;
+        background: var(--bg);
+      }
+      .chat-input-row {
+        display: flex;
+        gap: 10px;
+        align-items: flex-end;
+      }
+      .chat-input-wrap {
+        flex: 1;
+      }
+      .chat-input-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+      }
+      .chat-actions {
+        display: flex;
+        gap: 6px;
+      }
+      .input-hint {
+        font-size: 10px;
+        color: var(--muted);
+      }
+      #chat-input {
+        width: 100%;
+        min-height: 44px;
+        max-height: 160px;
+        padding: 10px 14px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+        color: var(--text);
+        font-family: inherit;
+        font-size: 14px;
+        line-height: 1.55;
+        resize: none;
+        outline: none;
+        overflow-y: auto;
+        transition:
+          border-color 0.15s,
+          box-shadow 0.15s;
+      }
+      #chat-input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.08);
+      }
+      #chat-input::placeholder {
+        color: var(--muted);
+      }
+      #chat-input:disabled {
+        opacity: 0.6;
+      }
+      .send-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        border: none;
+        background: var(--accent);
+        color: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition:
+          background 0.15s,
+          transform 0.1s;
+        flex-shrink: 0;
+      }
+      .send-btn svg {
+        width: 17px;
+        height: 17px;
+      }
+      .send-btn:hover:not(:disabled) {
+        background: var(--accent-dark);
+        transform: scale(1.03);
+      }
+      .send-btn:disabled {
+        background: var(--border);
+        color: var(--muted);
+        cursor: not-allowed;
+        transform: none;
+      }
+      .btn-sm {
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        padding: 3px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 11px;
+        font-family: inherit;
+        transition: all 0.15s;
+      }
+      .btn-sm:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
 
-    /* Chat input area */
-    .chat-input-area {
-      border-top: 1px solid var(--border);
-      padding: 12px 20px 14px;
-      background: var(--bg);
-    }
-    .chat-input-row {
-      display: flex;
-      gap: 10px;
-      align-items: flex-end;
-    }
-    .chat-input-wrap { flex: 1; }
-    .chat-input-meta {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 6px;
-    }
-    .chat-actions { display: flex; gap: 6px; }
-    .input-hint { font-size: 10px; color: var(--muted); }
-
-    #chat-input {
-      width: 100%;
-      min-height: 44px;
-      max-height: 160px;
-      padding: 10px 14px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: var(--surface);
-      color: var(--text);
-      font-family: inherit;
-      font-size: 14px;
-      line-height: 1.55;
-      resize: none;
-      outline: none;
-      overflow-y: auto;
-      transition: border-color 0.15s, box-shadow 0.15s;
-    }
-    #chat-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(217,119,6,0.08); }
-    #chat-input::placeholder { color: var(--muted); }
-    #chat-input:disabled { opacity: 0.6; }
-
-    .send-btn {
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
-      border: none;
-      background: var(--accent);
-      color: white;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.15s, transform 0.1s;
-      flex-shrink: 0;
-    }
-    .send-btn svg { width: 17px; height: 17px; }
-    .send-btn:hover:not(:disabled) { background: var(--accent-dark); transform: scale(1.03); }
-    .send-btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
-
-    .btn-sm {
-      background: none;
-      border: 1px solid var(--border);
-      color: var(--muted);
-      padding: 3px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 11px;
-      font-family: inherit;
-      transition: all 0.15s;
-    }
-    .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
-
-    /* ═══════════════════════════════════════════════════════
-       MONITOR VIEW
+      /* ═══════════════════════════════════════════════════════
+       INSPECTOR VIEW
     ═══════════════════════════════════════════════════════ */
-    #view-monitor {
-      display: grid;
-      grid-template-columns: 1fr 280px;
-      height: 100%;
-    }
+      #view-inspector {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        height: 100%;
+      }
 
-    .feed-panel {
-      display: flex;
-      flex-direction: column;
-      border-right: 1px solid var(--border);
-      overflow: hidden;
-    }
-    .panel-header {
-      padding: 8px 16px;
-      border-bottom: 1px solid var(--border);
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--muted);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-shrink: 0;
-      background: var(--surface);
-    }
-    #feed { flex: 1; overflow-y: auto; padding: 6px 0; scroll-behavior: smooth; }
+      .ins-stats-bar {
+        display: flex;
+        background: #1c1a17;
+        border-bottom: 1px solid #333;
+        flex-shrink: 0;
+      }
+      .ins-stat {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 10px 6px;
+        border-right: 1px solid #2e2b26;
+        text-align: center;
+      }
+      .ins-stat:last-child {
+        border-right: none;
+      }
+      .ins-stat-val {
+        font-size: 19px;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        color: #e5e2dc;
+        line-height: 1.2;
+      }
+      .ins-stat-val.accent {
+        color: var(--accent);
+      }
+      .ins-stat-val.green {
+        color: #4ade80;
+      }
+      .ins-stat-val.blue {
+        color: #93c5fd;
+      }
+      .ins-stat-val.purple {
+        color: #c4b5fd;
+      }
+      .ins-stat-label {
+        font-size: 9px;
+        color: #78716c;
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+        margin-top: 2px;
+      }
 
-    /* Event cards */
-    .event {
-      padding: 7px 16px;
-      border-left: 3px solid transparent;
-      animation: fadeIn 0.15s ease;
-    }
-    .event:hover { background: rgba(0,0,0,0.02); }
-    .event-meta { display: flex; gap: 8px; align-items: center; margin-bottom: 3px; }
-    .event-tag {
-      font-size: 10px;
-      padding: 1px 6px;
-      border-radius: 3px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      font-weight: 700;
-    }
-    .event-source { font-size: 10px; color: var(--muted); }
-    .event-time   { font-size: 10px; color: var(--muted); margin-left: auto; }
-    .event-content { line-height: 1.5; word-break: break-word; font-size: 13px; }
-    .event-content pre { white-space: pre-wrap; }
+      .ins-feed {
+        overflow-y: auto;
+        padding: 0;
+      }
 
-    .ev-user_input         { border-color: var(--blue); }
-    .ev-user_input .event-tag   { background: #dbeafe; color: var(--blue); }
-    .ev-user_input .event-content { color: #1e40af; }
+      /* Inspector cards */
+      .ins-card {
+        border-bottom: 1px solid var(--border);
+        font-size: 12px;
+        animation: fadeIn 0.15s ease;
+      }
+      .ins-card-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 16px;
+        background: var(--surface);
+        cursor: pointer;
+        user-select: none;
+        border-bottom: 1px solid transparent;
+      }
+      .ins-card-head:hover {
+        background: var(--border);
+      }
+      .ins-card.expanded .ins-card-head {
+        border-bottom-color: var(--border);
+      }
+      .ins-badge {
+        font-size: 9px;
+        padding: 2px 7px;
+        border-radius: 3px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+      .ins-badge-user {
+        background: #dbeafe;
+        color: var(--blue);
+      }
+      .ins-badge-req {
+        background: #ede9fe;
+        color: var(--purple);
+      }
+      .ins-badge-stream {
+        background: #1c1a17;
+        color: #a8a29e;
+      }
+      .ins-badge-think {
+        background: #f1f5f9;
+        color: #64748b;
+      }
+      .ins-badge-tool {
+        background: #fef3c7;
+        color: var(--yellow);
+      }
+      .ins-badge-result-ok {
+        background: #dcfce7;
+        color: var(--green);
+      }
+      .ins-badge-result-fail {
+        background: #fee2e2;
+        color: var(--red);
+      }
+      .ins-badge-tokens {
+        background: #cffafe;
+        color: var(--cyan);
+      }
+      .ins-badge-final {
+        background: var(--accent-dim);
+        color: var(--accent-dark);
+      }
 
-    .ev-thinking           { border-color: var(--border); }
-    .ev-thinking .event-tag { background: var(--surface); color: var(--muted); }
-    .ev-thinking .event-content { color: var(--muted); font-style: italic; }
+      .ins-card-info {
+        flex: 1;
+        color: var(--muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .ins-card-info strong {
+        color: var(--text);
+      }
+      .ins-card-time {
+        font-size: 10px;
+        color: var(--muted);
+        flex-shrink: 0;
+        font-variant-numeric: tabular-nums;
+      }
+      .ins-chevron {
+        font-size: 9px;
+        color: var(--muted);
+        flex-shrink: 0;
+        transition: transform 0.2s;
+      }
+      .ins-card.expanded .ins-chevron {
+        transform: rotate(180deg);
+      }
 
-    .ev-tool_call          { border-color: var(--yellow); }
-    .ev-tool_call .event-tag { background: #fef3c7; color: var(--yellow); }
-    .ev-tool_call .tool-name { color: var(--yellow); font-weight: 700; }
-    .ev-tool_call .tool-args { color: #78716c; margin-top: 2px; font-size: 12px; }
+      .ins-card-body {
+        display: none;
+        padding: 12px 16px;
+        background: var(--bg);
+        border-top: none;
+      }
+      .ins-card.expanded .ins-card-body {
+        display: block;
+      }
 
-    .ev-tool_result.success  { border-color: var(--green); }
-    .ev-tool_result.success .event-tag { background: #dcfce7; color: var(--green); }
-    .ev-tool_result.success .event-content { color: #15803d; }
+      /* Terminal-style pre in inspector */
+      .ins-pre {
+        background: #1c1a17;
+        color: #e5e2dc;
+        padding: 10px 12px;
+        border-radius: 6px;
+        font-family: 'SF Mono', Menlo, monospace;
+        font-size: 11px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 300px;
+        overflow-y: auto;
+      }
+      .ins-pre.stream-live {
+        border: 1px solid rgba(217, 119, 6, 0.3);
+        max-height: 240px;
+      }
+      /* Think blocks inside inspector */
+      .ins-think-text {
+        color: #64748b;
+        font-style: italic;
+      }
+      .ins-response-text {
+        color: #a3e635;
+      }
 
-    .ev-tool_result.failure  { border-color: var(--red); }
-    .ev-tool_result.failure .event-tag { background: #fee2e2; color: var(--red); }
-    .ev-tool_result.failure .event-content { color: var(--red); }
+      /* Stream card: Raw / Rendered tabs */
+      .ins-stream-tabs {
+        display: flex;
+        gap: 0;
+        margin-bottom: 8px;
+        border: 1px solid #333;
+        border-radius: 5px;
+        overflow: hidden;
+        width: fit-content;
+      }
+      .ins-tab {
+        font-size: 10px;
+        padding: 3px 12px;
+        border: none;
+        background: none;
+        color: #78716c;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      .ins-tab:first-child {
+        border-right: 1px solid #333;
+      }
+      .ins-tab.active {
+        background: rgba(217, 119, 6, 0.18);
+        color: var(--accent);
+      }
+      .ins-md-view {
+        background: #1c1a17;
+        color: #e5e2dc;
+        padding: 10px 12px;
+        border-radius: 6px;
+        border: 1px solid rgba(217, 119, 6, 0.3);
+        font-size: 12px;
+        line-height: 1.65;
+        max-height: 240px;
+        overflow-y: auto;
+      }
+      .ins-md-view p {
+        margin-bottom: 8px;
+      }
+      .ins-md-view h1,
+      .ins-md-view h2,
+      .ins-md-view h3 {
+        color: #fff;
+        margin: 0 0 5px;
+      }
+      .ins-md-view code {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-family: 'SF Mono', Menlo, monospace;
+        font-size: 11px;
+      }
+      .ins-md-view pre {
+        background: rgba(0, 0, 0, 0.4);
+        padding: 8px 10px;
+        border-radius: 4px;
+        overflow-x: auto;
+        margin-bottom: 8px;
+      }
+      .ins-md-view ul,
+      .ins-md-view ol {
+        padding-left: 18px;
+        margin-bottom: 8px;
+      }
+      .ins-md-view li {
+        margin-bottom: 2px;
+      }
 
-    .ev-response           { border-color: var(--accent); background: rgba(217,119,6,0.03); }
-    .ev-response .event-tag { background: var(--accent-dim); color: var(--accent); }
+      /* Message context view (inside LLM request card) */
+      .ins-msgs {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        margin-top: 8px;
+      }
+      .ins-msg {
+        border-radius: 5px;
+        overflow: hidden;
+        font-size: 11px;
+      }
+      .ins-msg-head {
+        padding: 4px 9px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        user-select: none;
+      }
+      .ins-msg-head:hover {
+        filter: brightness(1.15);
+      }
+      .ins-msg-head .ins-msg-len {
+        margin-left: auto;
+        font-weight: 400;
+        font-size: 9px;
+        opacity: 0.7;
+      }
+      .ins-msg-body {
+        padding: 5px 9px;
+        font-size: 11px;
+        font-family: 'SF Mono', Menlo, monospace;
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 160px;
+        overflow-y: auto;
+        display: none;
+        line-height: 1.5;
+      }
+      .ins-msg.open .ins-msg-body {
+        display: block;
+      }
+      .ins-msg-system .ins-msg-head {
+        background: #1e1b4b;
+        color: #a5b4fc;
+      }
+      .ins-msg-system .ins-msg-body {
+        background: #0f0e22;
+        color: #818cf8;
+      }
+      .ins-msg-user .ins-msg-head {
+        background: #1e3a5f;
+        color: #93c5fd;
+      }
+      .ins-msg-user .ins-msg-body {
+        background: #0f1e30;
+        color: #bfdbfe;
+      }
+      .ins-msg-assistant .ins-msg-head {
+        background: #14261a;
+        color: #4ade80;
+      }
+      .ins-msg-assistant .ins-msg-body {
+        background: #0a1510;
+        color: #86efac;
+      }
+      .ins-msg-tool .ins-msg-head {
+        background: #2a1f00;
+        color: #fbbf24;
+      }
+      .ins-msg-tool .ins-msg-body {
+        background: #160f00;
+        color: #fde68a;
+      }
+      .ins-msg-tool-chevron {
+        font-size: 8px;
+      }
+      .ins-msg.open .ins-msg-tool-chevron {
+        transform: rotate(180deg);
+      }
 
-    .ev-error              { border-color: var(--red); }
-    .ev-error .event-tag   { background: #fee2e2; color: var(--red); }
-    .ev-error .event-content { color: var(--red); }
+      /* Clear btn */
+      .ins-clear-btn {
+        background: none;
+        border: 1px solid #333;
+        color: #78716c;
+        padding: 2px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 10px;
+        font-family: inherit;
+      }
+      .ins-clear-btn:hover {
+        border-color: var(--red);
+        color: var(--red);
+      }
 
-    .truncated  { color: var(--muted); font-size: 11px; font-style: italic; }
-    .expand-btn {
-      background: none; border: 1px solid var(--border); color: var(--muted);
-      padding: 1px 6px; border-radius: 3px; cursor: pointer; font-size: 10px;
-      margin-top: 4px; font-family: inherit;
-    }
-    .expand-btn:hover { color: var(--accent); border-color: var(--accent); }
-
-    .source-cli      { color: var(--accent); }
-    .source-telegram { color: #2aabee; }
-    .source-web      { color: var(--green); }
-
-    /* Sidebar */
-    .sidebar { display: flex; flex-direction: column; overflow: hidden; }
-    .sidebar-section {
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    .sidebar-section.tasks    { flex: 0 0 50%; }
-    .sidebar-section.facts    { flex: 1; border-bottom: none; }
-    .sidebar-header {
-      padding: 7px 12px;
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--muted);
-      background: var(--surface);
-      flex-shrink: 0;
-      border-bottom: 1px solid var(--border);
-    }
-    .sidebar-body { padding: 8px 12px; overflow-y: auto; flex: 1; }
-
-    .task-item { margin-bottom: 10px; padding: 8px; background: var(--surface); border-radius: 6px; border: 1px solid var(--border); }
-    .task-name { font-weight: 700; color: var(--cyan); font-size: 12px; margin-bottom: 4px; }
-    .task-subtask { display: flex; align-items: flex-start; gap: 6px; font-size: 11px; margin: 2px 0; color: var(--muted); }
-    .task-subtask.done { color: var(--green); text-decoration: line-through; }
-    .task-check { flex-shrink: 0; margin-top: 1px; }
-    .fact-item { font-size: 11px; color: var(--muted); padding: 3px 0; border-bottom: 1px solid var(--border); line-height: 1.4; }
-    .fact-item:last-child { border-bottom: none; }
-    .fact-item::before { content: '•'; color: var(--accent); margin-right: 6px; }
-    .empty { color: var(--muted); font-size: 11px; font-style: italic; padding: 4px 0; }
-
-    /* ═══════════════════════════════════════════════════════
+      /* ═══════════════════════════════════════════════════════
        SETTINGS VIEW
     ═══════════════════════════════════════════════════════ */
-    #view-settings { overflow-y: auto; padding: 28px 32px 40px; height: 100%; }
-    .settings-wrap { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
-
-    .settings-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    .settings-card-header {
-      padding: 13px 20px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: var(--bg);
-    }
-    .settings-card-header svg { width: 16px; height: 16px; flex-shrink: 0; }
-    .settings-card-title { font-weight: 700; font-size: 14px; }
-    .settings-card-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
-
-    .settings-field { display: flex; flex-direction: column; gap: 4px; }
-    .settings-field-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 600; }
-    .settings-field-val {
-      font-size: 13px;
-      font-family: 'SF Mono', Menlo, monospace;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 7px 11px;
-      color: var(--text);
-    }
-
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 3px 10px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: 600;
-    }
-    .badge.ok    { background: #dcfce7; color: var(--green); }
-    .badge.warn  { background: #fef3c7; color: var(--yellow); }
-    .badge.err   { background: #fee2e2; color: var(--red); }
-
-    /* Note box */
-    .note {
-      background: var(--accent-dim);
-      border: 1px solid rgba(217,119,6,0.18);
-      border-radius: 8px;
-      padding: 11px 14px;
-      font-size: 12px;
-      color: var(--accent-dark);
-      line-height: 1.55;
-    }
-
-    /* Steps */
-    .steps { display: flex; flex-direction: column; gap: 14px; }
-    .step  { display: flex; gap: 12px; align-items: flex-start; }
-    .step-num {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background: var(--accent-dim);
-      color: var(--accent);
-      font-size: 11px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      margin-top: 1px;
-    }
-    .step-body { flex: 1; }
-    .step-text { font-size: 13px; line-height: 1.5; color: var(--text); }
-    .step-code {
-      margin-top: 7px;
-      background: #1c1a17;
-      color: #e5e2dc;
-      padding: 9px 13px;
-      border-radius: 7px;
-      font-family: 'SF Mono', Menlo, monospace;
-      font-size: 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-    }
-    .step-code code { flex: 1; word-break: break-all; }
-    .copy-btn {
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.12);
-      color: rgba(255,255,255,0.55);
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 10px;
-      cursor: pointer;
-      font-family: inherit;
-      transition: all 0.15s;
-      flex-shrink: 0;
-      white-space: nowrap;
-    }
-    .copy-btn:hover { background: rgba(255,255,255,0.18); color: white; }
-
-    /* Bot commands table */
-    .cmd-table { display: flex; flex-direction: column; gap: 6px; }
-    .cmd-row { display: flex; gap: 12px; font-size: 12px; align-items: baseline; }
-    .cmd-name { font-family: 'SF Mono', Menlo, monospace; color: #2aabee; min-width: 80px; flex-shrink: 0; }
-    .cmd-desc { color: var(--muted); }
-
-    /* Stats grid */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-    .stat-card {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 14px;
-      text-align: center;
-    }
-    .stat-card-val { font-size: 26px; font-weight: 800; color: var(--accent); }
-    .stat-card-label { font-size: 11px; color: var(--muted); margin-top: 2px; }
-
-    /* ── SCROLLBAR ─────────────────────────────────────── */
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #d1cdc7; border-radius: 2px; }
-    ::-webkit-scrollbar-thumb:hover { background: #b8b3ac; }
-  </style>
-</head>
-<body>
-<div class="app">
-
-  <!-- ── LEFT NAV ── -->
-  <nav class="nav">
-    <div class="nav-logo">N</div>
-
-    <button class="nav-btn active" id="nav-chat" onclick="setView('chat')" title="Chat">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-      </svg>
-    </button>
-
-    <button class="nav-btn" id="nav-monitor" onclick="setView('monitor')" title="Activity Monitor">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-      </svg>
-    </button>
-
-    <button class="nav-btn" id="nav-settings" onclick="setView('settings')" title="Settings & Setup">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-      </svg>
-    </button>
-
-    <div class="nav-spacer"></div>
-    <div class="nav-conn-dot" id="conn-dot" title="SSE connection status"></div>
-  </nav>
-
-  <!-- ── MAIN ── -->
-  <div class="main">
-
-    <!-- HEADER -->
-    <header>
-      <div class="header-title" id="view-title">Chat</div>
-      <div class="header-stats">
-        <div class="stat"><span class="stat-val" id="stat-facts">—</span>&nbsp;Facts</div>
-        <div class="stat"><span class="stat-val" id="stat-skills">—</span>&nbsp;Skills</div>
-        <div class="stat"><span class="stat-val" id="stat-tasks">—</span>&nbsp;Tasks</div>
-      </div>
-      <div class="header-spacer"></div>
-      <div class="conn-status" id="conn-status">Connecting…</div>
-    </header>
-
-    <!-- ═══ CHAT VIEW ═══ -->
-    <div class="view" id="view-chat">
-      <div class="chat-messages" id="chat-messages">
-        <div class="chat-welcome" id="chat-welcome">
-          <div class="welcome-logo">NCLAW</div>
-          <h3>Your local AI agent</h3>
-          <p>Powered by LM Studio · All processing on your machine · No data leaves</p>
-          <div class="example-prompts">
-            <button class="example-prompt" onclick="usePrompt(this)">commit my changes</button>
-            <button class="example-prompt" onclick="usePrompt(this)">review src/index.js</button>
-            <button class="example-prompt" onclick="usePrompt(this)">list active tasks</button>
-            <button class="example-prompt" onclick="usePrompt(this)">what's in my clipboard?</button>
-            <button class="example-prompt" onclick="usePrompt(this)">remember that I use pnpm</button>
-            <button class="example-prompt" onclick="usePrompt(this)">scan this project</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="chat-input-area">
-        <div class="chat-input-meta">
-          <div class="chat-actions">
-            <button class="btn-sm" onclick="clearChat()">Clear history</button>
-          </div>
-          <div class="input-hint">Enter ↵ to send &nbsp;·&nbsp; Shift+Enter for newline</div>
-        </div>
-        <div class="chat-input-row">
-          <div class="chat-input-wrap">
-            <textarea
-              id="chat-input"
-              placeholder="Message nclaw…"
-              rows="1"
-              autocomplete="off"
-              spellcheck="true"
-            ></textarea>
-          </div>
-          <button class="send-btn" id="send-btn" onclick="sendMessage()" title="Send (Enter)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13"/>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ═══ MONITOR VIEW ═══ -->
-    <div class="view hidden" id="view-monitor">
-
-      <div class="feed-panel">
-        <div class="panel-header">
-          <span>Live Activity Feed</span>
-          <button class="btn-sm" onclick="clearFeed()">Clear</button>
-        </div>
-        <div id="feed">
-          <div class="event ev-thinking" style="opacity:0.5">
-            <div class="event-meta"><span class="event-tag">READY</span></div>
-            <div class="event-content">Waiting for agent activity…</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="sidebar">
-        <div class="sidebar-section tasks">
-          <div class="sidebar-header">Active Tasks</div>
-          <div class="sidebar-body" id="tasks-list">
-            <div class="empty">No active tasks</div>
-          </div>
-        </div>
-        <div class="sidebar-section facts">
-          <div class="sidebar-header">Memory · Facts</div>
-          <div class="sidebar-body" id="facts-list">
-            <div class="empty">No facts recorded</div>
-          </div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- ═══ SETTINGS VIEW ═══ -->
-    <div class="view hidden" id="view-settings">
-      <div class="settings-wrap">
-
-        <!-- Connection Status -->
-        <div class="settings-card">
-          <div class="settings-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <polyline points="12 6 12 12 16 14"/>
-            </svg>
-            <div class="settings-card-title">LM Studio Connection</div>
-            <div style="margin-left:auto" id="lm-status-badge"></div>
-          </div>
-          <div class="settings-card-body">
-            <div class="settings-field">
-              <div class="settings-field-label">Base URL</div>
-              <div class="settings-field-val" id="cfg-url">Loading…</div>
-            </div>
-            <div class="settings-field">
-              <div class="settings-field-label">Model</div>
-              <div class="settings-field-val" id="cfg-model">Loading…</div>
-            </div>
-            <div style="font-size:12px;color:var(--muted);line-height:1.5">
-              Configure via environment variables: <code style="font-family:monospace;background:var(--bg);padding:1px 5px;border-radius:3px">LM_STUDIO_BASE_URL</code>,
-              <code style="font-family:monospace;background:var(--bg);padding:1px 5px;border-radius:3px">LM_STUDIO_MODEL</code> in your <code style="font-family:monospace;background:var(--bg);padding:1px 5px;border-radius:3px">.env</code> file.
-            </div>
-          </div>
-        </div>
-
-        <!-- Telegram Setup -->
-        <div class="settings-card">
-          <div class="settings-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#2aabee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13"/>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-            </svg>
-            <div class="settings-card-title">Telegram Bot</div>
-            <div style="margin-left:auto" id="telegram-badge"></div>
-          </div>
-          <div class="settings-card-body">
-            <div class="note">
-              Connect nclaw to Telegram to interact with your agent from anywhere on your phone.
-              Uses long polling — no public server or domain name required.
-            </div>
-
-            <div class="steps">
-              <div class="step">
-                <div class="step-num">1</div>
-                <div class="step-body">
-                  <div class="step-text">Open Telegram and search for <strong>@BotFather</strong>, then start a chat with it.</div>
-                </div>
-              </div>
-
-              <div class="step">
-                <div class="step-num">2</div>
-                <div class="step-body">
-                  <div class="step-text">Send the <code style="font-family:monospace;background:rgba(0,0,0,0.06);padding:1px 5px;border-radius:3px">/newbot</code> command to create your bot.</div>
-                  <div class="step-code">
-                    <code>/newbot</code>
-                    <button class="copy-btn" onclick="copyText('/newbot', this)">Copy</button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="step">
-                <div class="step-num">3</div>
-                <div class="step-body">
-                  <div class="step-text">Choose a display name (e.g. <em>My nclaw</em>) and then a unique username ending in <code style="font-family:monospace;background:rgba(0,0,0,0.06);padding:1px 5px;border-radius:3px">_bot</code> (e.g. <em>my_nclaw_bot</em>).</div>
-                </div>
-              </div>
-
-              <div class="step">
-                <div class="step-num">4</div>
-                <div class="step-body">
-                  <div class="step-text">BotFather sends you a <strong>bot token</strong>. It looks like:</div>
-                  <div class="step-code">
-                    <code>1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ</code>
-                  </div>
-                </div>
-              </div>
-
-              <div class="step">
-                <div class="step-num">5</div>
-                <div class="step-body">
-                  <div class="step-text">Open the <strong>.env</strong> file in your nclaw directory and add:</div>
-                  <div class="step-code">
-                    <code>TELEGRAM_BOT_TOKEN=your_token_here</code>
-                    <button class="copy-btn" onclick="copyText('TELEGRAM_BOT_TOKEN=your_token_here', this)">Copy</button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="step">
-                <div class="step-num">6</div>
-                <div class="step-body">
-                  <div class="step-text">Restart nclaw. The bot starts automatically when it finds the token.</div>
-                  <div class="step-code">
-                    <code>node src/cli.js</code>
-                    <button class="copy-btn" onclick="copyText('node src/cli.js', this)">Copy</button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="step">
-                <div class="step-num">7</div>
-                <div class="step-body">
-                  <div class="step-text">Search for your bot in Telegram and send <strong>/start</strong>. You're connected!</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Bot commands reference -->
-            <div class="settings-field">
-              <div class="settings-field-label">Available Bot Commands</div>
-              <div class="cmd-table" style="margin-top:6px">
-                <div class="cmd-row"><span class="cmd-name">/start</span><span class="cmd-desc">Welcome message and available commands</span></div>
-                <div class="cmd-row"><span class="cmd-name">/tasks</span><span class="cmd-desc">List all active tasks</span></div>
-                <div class="cmd-row"><span class="cmd-name">/status</span><span class="cmd-desc">Show uptime and agent status</span></div>
-                <div class="cmd-row"><span class="cmd-name">/clear</span><span class="cmd-desc">Clear conversation history for this chat</span></div>
-                <div class="cmd-row"><span class="cmd-name">any text</span><span class="cmd-desc">Send a message directly to your agent</span></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Memory & Skills Stats -->
-        <div class="settings-card">
-          <div class="settings-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-            </svg>
-            <div class="settings-card-title">Memory & Skills</div>
-          </div>
-          <div class="settings-card-body">
-            <div class="stats-grid">
-              <div class="stat-card">
-                <div class="stat-card-val" id="mem-facts">—</div>
-                <div class="stat-card-label">Facts</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-card-val" id="mem-skills">—</div>
-                <div class="stat-card-label">Skills</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-card-val" id="mem-processes">—</div>
-                <div class="stat-card-label">Processes</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-card-val" id="mem-tasks">—</div>
-                <div class="stat-card-label">Active Tasks</div>
-              </div>
-            </div>
-            <div style="font-size:12px;color:var(--muted);line-height:1.6">
-              Skills live in <code style="font-family:monospace;background:var(--bg);padding:1px 5px;border-radius:3px">~/.nclaw/skills/*.md</code> ·
-              Processes in <code style="font-family:monospace;background:var(--bg);padding:1px 5px;border-radius:3px">~/.nclaw/processes/*.md</code> ·
-              Facts in <code style="font-family:monospace;background:var(--bg);padding:1px 5px;border-radius:3px">~/.nclaw/memory/facts.md</code>
-            </div>
-          </div>
-        </div>
-
-        <!-- About -->
-        <div class="settings-card">
-          <div class="settings-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="8" x2="12" y2="12"/>
-              <line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            <div class="settings-card-title">About nclaw</div>
-            <span class="badge ok" style="margin-left:auto">v2.0.0</span>
-          </div>
-          <div class="settings-card-body">
-            <div style="font-size:13px;color:var(--muted);line-height:1.7">
-              <strong style="color:var(--text)">nclaw</strong> is a markdown-driven local AI agent for MacBook productivity.
-              All processing runs on your machine via LM Studio — no cloud, no subscriptions, no data sharing.
-              <br><br>
-              ReAct loop · 10 built-in tools · Markdown skills & processes ·
-              Telegram integration · Persistent memory
-            </div>
-            <div style="display:flex;gap:8px;margin-top:4px">
-              <div id="uptime-display" style="font-size:11px;color:var(--muted)">Uptime: loading…</div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-    <!-- end settings -->
-
-  </div>
-  <!-- end .main -->
-
-</div>
-<!-- end .app -->
-
-<script>
-  // ── Marked setup ──────────────────────────────────────
-  if (typeof marked !== 'undefined') {
-    marked.use({ gfm: true, breaks: true });
-  }
-
-  // ── View management ───────────────────────────────────
-  const VIEWS = ['chat', 'monitor', 'settings'];
-  const VIEW_TITLES = { chat: 'Chat', monitor: 'Activity Monitor', settings: 'Settings' };
-  let currentView = 'chat';
-
-  function setView(name) {
-    VIEWS.forEach(v => {
-      document.getElementById(`view-${v}`).classList.toggle('hidden', v !== name);
-      document.getElementById(`nav-${v}`).classList.toggle('active', v === name);
-    });
-    document.getElementById('view-title').textContent = VIEW_TITLES[name];
-    currentView = name;
-    if (name === 'settings') loadSettings();
-  }
-
-  // ── Chat State ────────────────────────────────────────
-  // displayHistory: array of { role:'user'|'agent', content:string, time:string, tools?:string[] }
-  let displayHistory = [];
-  let isSending = false;
-  let pendingTools = [];
-
-  // Restore from sessionStorage
-  try {
-    const saved = sessionStorage.getItem('nclaw-display-history');
-    if (saved) {
-      displayHistory = JSON.parse(saved);
-      if (displayHistory.length > 0) {
-        document.getElementById('chat-welcome').remove();
-        displayHistory.forEach(m => renderMessage(m, false));
-        const mc = document.getElementById('chat-messages');
-        mc.scrollTop = mc.scrollHeight;
+      #view-settings {
+        overflow-y: auto;
+        padding: 28px 32px 40px;
+        height: 100%;
       }
-    }
-  } catch (_) {}
+      .settings-wrap {
+        max-width: 680px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .settings-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .settings-card-header {
+        padding: 13px 20px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--bg);
+      }
+      .settings-card-header svg {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+      }
+      .settings-card-title {
+        font-weight: 700;
+        font-size: 14px;
+      }
+      .settings-card-body {
+        padding: 18px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .settings-field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .settings-field-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .settings-field-val {
+        font-size: 13px;
+        font-family: 'SF Mono', Menlo, monospace;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 7px 11px;
+        color: var(--text);
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .badge.ok {
+        background: #dcfce7;
+        color: var(--green);
+      }
+      .badge.warn {
+        background: #fef3c7;
+        color: var(--yellow);
+      }
+      .badge.err {
+        background: #fee2e2;
+        color: var(--red);
+      }
+      .note {
+        background: var(--accent-dim);
+        border: 1px solid rgba(217, 119, 6, 0.18);
+        border-radius: 8px;
+        padding: 11px 14px;
+        font-size: 12px;
+        color: var(--accent-dark);
+        line-height: 1.55;
+      }
+      .steps {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .step {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+      }
+      .step-num {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: var(--accent-dim);
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+      .step-body {
+        flex: 1;
+      }
+      .step-text {
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--text);
+      }
+      .step-code {
+        margin-top: 7px;
+        background: #1c1a17;
+        color: #e5e2dc;
+        padding: 9px 13px;
+        border-radius: 7px;
+        font-family: 'SF Mono', Menlo, monospace;
+        font-size: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+      }
+      .step-code code {
+        flex: 1;
+        word-break: break-all;
+      }
+      .copy-btn {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.55);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 10px;
+        cursor: pointer;
+        font-family: inherit;
+        transition: all 0.15s;
+        flex-shrink: 0;
+        white-space: nowrap;
+      }
+      .copy-btn:hover {
+        background: rgba(255, 255, 255, 0.18);
+        color: white;
+      }
+      .cmd-table {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .cmd-row {
+        display: flex;
+        gap: 12px;
+        font-size: 12px;
+        align-items: baseline;
+      }
+      .cmd-name {
+        font-family: 'SF Mono', Menlo, monospace;
+        color: #2aabee;
+        min-width: 80px;
+        flex-shrink: 0;
+      }
+      .cmd-desc {
+        color: var(--muted);
+      }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .stat-card {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 14px;
+        text-align: center;
+      }
+      .stat-card-val {
+        font-size: 26px;
+        font-weight: 800;
+        color: var(--accent);
+      }
+      .stat-card-label {
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 2px;
+      }
 
-  function saveDisplayHistory() {
-    try { sessionStorage.setItem('nclaw-display-history', JSON.stringify(displayHistory)); } catch (_) {}
-  }
+      /* ═══════════════════════════════════════════════════════
+       SETUP VIEW
+    ═══════════════════════════════════════════════════════ */
+      #view-setup {
+        overflow-y: auto;
+        padding: 28px 32px 40px;
+        height: 100%;
+      }
+      .setup-step-num {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: var(--accent-dim);
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .setup-input {
+        font-size: 13px;
+        font-family: 'SF Mono', Menlo, monospace;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 7px 11px;
+        color: var(--text);
+        flex: 1;
+        outline: none;
+        min-width: 0;
+      }
+      .setup-input:focus {
+        border-color: var(--accent);
+      }
+      .setup-btn {
+        font-size: 12px;
+        padding: 7px 14px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text);
+        cursor: pointer;
+        font-family: inherit;
+        white-space: nowrap;
+      }
+      .setup-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .setup-btn.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: white;
+        font-weight: 600;
+      }
+      .setup-btn.primary:hover {
+        background: var(--accent-dark);
+        border-color: var(--accent-dark);
+      }
+      .setup-model-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .setup-model-chip {
+        font-size: 11px;
+        padding: 3px 10px;
+        border-radius: 20px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        color: var(--muted);
+        cursor: pointer;
+        font-family: 'SF Mono', Menlo, monospace;
+      }
+      .setup-model-chip:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .setup-model-chip.active {
+        background: var(--accent-dim);
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .setup-status-msg {
+        font-size: 12px;
+        line-height: 1.5;
+        padding: 8px 12px;
+        border-radius: 6px;
+      }
+      .setup-status-msg.ok {
+        background: #dcfce7;
+        color: var(--green);
+      }
+      .setup-status-msg.err {
+        background: #fee2e2;
+        color: var(--red);
+      }
+      .setup-status-msg.warn {
+        background: var(--accent-dim);
+        color: var(--accent-dark);
+      }
 
-  // ── Helpers ───────────────────────────────────────────
-  function fmtTime(iso) {
-    return new Date(iso).toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit' });
-  }
+      /* ── SCROLLBAR ─────────────────────────────────────── */
+      ::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #d1cdc7;
+        border-radius: 2px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #b8b3ac;
+      }
+      .ins-feed::-webkit-scrollbar-thumb {
+        background: #3c3835;
+      }
+      .ins-feed::-webkit-scrollbar-thumb:hover {
+        background: #504c49;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <!-- ── LEFT NAV ── -->
+      <nav class="nav">
+        <div class="nav-logo">N</div>
 
-  function esc(str) {
-    const d = document.createElement('div');
-    d.textContent = String(str);
-    return d.innerHTML;
-  }
+        <button
+          class="nav-btn active"
+          id="nav-chat"
+          onclick="setView('chat')"
+          title="Chat"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+            />
+          </svg>
+        </button>
 
-  function renderMd(text) {
-    if (typeof marked === 'undefined') return esc(text).replace(/\n/g, '<br>');
-    try { return marked.parse(text); } catch (_) { return esc(text).replace(/\n/g, '<br>'); }
-  }
+        <button
+          class="nav-btn"
+          id="nav-inspector"
+          onclick="setView('inspector')"
+          title="LLM Inspector"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="3" />
+            <path d="M3 12s4-7 9-7 9 7 9 7-4 7-9 7-9-7-9-7z" />
+          </svg>
+        </button>
 
-  function addCopyButtons(container) {
-    container.querySelectorAll('pre').forEach(pre => {
-      if (pre.querySelector('.copy-code-btn')) return;
-      const btn = document.createElement('button');
-      btn.className = 'copy-code-btn';
-      btn.textContent = 'Copy';
-      btn.onclick = () => {
-        const code = pre.querySelector('code');
-        navigator.clipboard.writeText(code ? code.textContent : pre.textContent)
-          .then(() => { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy', 2000); })
-          .catch(() => {});
+        <button
+          class="nav-btn"
+          id="nav-setup"
+          onclick="setView('setup')"
+          title="Setup & Configuration"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="9 11 12 14 22 4" />
+            <path
+              d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
+            />
+          </svg>
+        </button>
+
+        <button
+          class="nav-btn"
+          id="nav-settings"
+          onclick="setView('settings')"
+          title="Settings & Setup"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+            />
+          </svg>
+        </button>
+
+        <div class="nav-spacer"></div>
+        <div
+          class="nav-conn-dot"
+          id="conn-dot"
+          title="SSE connection status"
+        ></div>
+      </nav>
+
+      <!-- ── MAIN ── -->
+      <div class="main">
+        <!-- HEADER -->
+        <header>
+          <div class="header-title" id="view-title">Chat</div>
+          <div class="header-stats">
+            <div class="stat">
+              <span class="stat-val" id="stat-facts">—</span>&nbsp;Facts
+            </div>
+            <div class="stat">
+              <span class="stat-val" id="stat-skills">—</span>&nbsp;Skills
+            </div>
+            <div class="stat">
+              <span class="stat-val" id="stat-tasks">—</span>&nbsp;Tasks
+            </div>
+          </div>
+          <div class="header-spacer"></div>
+          <div
+            class="header-tokens"
+            id="header-tokens"
+            title="Session token usage"
+          >
+            <div class="htoken">
+              <span class="htoken-val" id="ht-prompt">0</span>&nbsp;<span
+                >in</span
+              >
+            </div>
+            <div style="color: var(--border)">|</div>
+            <div class="htoken">
+              <span class="htoken-val" id="ht-completion">0</span>&nbsp;<span
+                >out</span
+              >
+            </div>
+            <div style="color: var(--border)">|</div>
+            <div class="htoken">
+              <span class="htoken-val accent" id="ht-total">0</span>&nbsp;<span
+                >total</span
+              >
+            </div>
+          </div>
+          <div class="conn-status" id="conn-status">Connecting…</div>
+        </header>
+
+        <!-- ═══ CHAT VIEW ═══ -->
+        <div class="view" id="view-chat">
+          <div class="chat-messages" id="chat-messages">
+            <div class="chat-welcome" id="chat-welcome">
+              <div class="welcome-logo">NCLAW</div>
+              <h3>Your local AI agent</h3>
+              <p>
+                Powered by LM Studio · All processing on your machine · No data
+                leaves
+              </p>
+              <div class="example-prompts">
+                <button class="example-prompt" onclick="usePrompt(this)">
+                  commit my changes
+                </button>
+                <button class="example-prompt" onclick="usePrompt(this)">
+                  review src/index.js
+                </button>
+                <button class="example-prompt" onclick="usePrompt(this)">
+                  list active tasks
+                </button>
+                <button class="example-prompt" onclick="usePrompt(this)">
+                  what's in my clipboard?
+                </button>
+                <button class="example-prompt" onclick="usePrompt(this)">
+                  remember that I use pnpm
+                </button>
+                <button class="example-prompt" onclick="usePrompt(this)">
+                  scan this project
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-input-area">
+            <div class="chat-input-meta">
+              <div class="chat-actions">
+                <button class="btn-sm" onclick="clearChat()">
+                  Clear history
+                </button>
+                <button
+                  class="btn-sm"
+                  onclick="setView('inspector')"
+                  title="Open LLM Inspector"
+                >
+                  Inspector
+                </button>
+              </div>
+              <div class="input-hint">
+                Enter ↵ to send &nbsp;·&nbsp; Shift+Enter for newline
+              </div>
+            </div>
+            <div class="chat-input-row">
+              <div class="chat-input-wrap">
+                <textarea
+                  id="chat-input"
+                  placeholder="Message nclaw…"
+                  rows="1"
+                  autocomplete="off"
+                  spellcheck="true"
+                ></textarea>
+              </div>
+              <button
+                class="send-btn"
+                id="send-btn"
+                onclick="sendMessage()"
+                title="Send (Enter)"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ INSPECTOR VIEW ═══ -->
+        <div class="view hidden" id="view-inspector">
+          <!-- Stats bar -->
+          <div class="ins-stats-bar">
+            <div class="ins-stat">
+              <div class="ins-stat-val blue" id="ins-prompt">0</div>
+              <div class="ins-stat-label">Prompt Tokens</div>
+            </div>
+            <div class="ins-stat">
+              <div class="ins-stat-val green" id="ins-completion">0</div>
+              <div class="ins-stat-label">Completion Tokens</div>
+            </div>
+            <div class="ins-stat">
+              <div class="ins-stat-val accent" id="ins-total">0</div>
+              <div class="ins-stat-label">Total Tokens</div>
+            </div>
+            <div class="ins-stat">
+              <div class="ins-stat-val purple" id="ins-llm-calls">0</div>
+              <div class="ins-stat-label">LLM Calls</div>
+            </div>
+            <div class="ins-stat">
+              <div class="ins-stat-val" id="ins-tool-calls-count">0</div>
+              <div class="ins-stat-label">Tool Calls</div>
+            </div>
+            <div
+              class="ins-stat"
+              style="
+                flex: 0.5;
+                padding: 8px 10px;
+                align-items: flex-end;
+                justify-content: center;
+              "
+            >
+              <button class="ins-clear-btn" onclick="clearInspector()">
+                Clear
+              </button>
+            </div>
+          </div>
+          <!-- Inspector feed -->
+          <div class="ins-feed" id="ins-feed">
+            <div
+              style="
+                padding: 24px;
+                text-align: center;
+                color: #78716c;
+                font-size: 12px;
+              "
+            >
+              Send a message to start inspecting LLM calls…
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ SETUP VIEW ═══ -->
+        <div class="view hidden" id="view-setup">
+          <div class="settings-wrap">
+            <!-- Step 1: LM Studio Server -->
+            <div class="settings-card">
+              <div class="settings-card-header">
+                <span class="setup-step-num">1</span>
+                <div class="settings-card-title">LM Studio Server</div>
+                <span id="setup-server-badge" style="margin-left: auto"></span>
+              </div>
+              <div class="settings-card-body">
+                <div
+                  style="font-size: 12px; color: var(--muted); line-height: 1.6"
+                >
+                  Open LM Studio → Developer tab → Start server. Default port is
+                  1234.
+                </div>
+                <div class="settings-field">
+                  <div class="settings-field-label">Server URL</div>
+                  <div style="display: flex; gap: 8px">
+                    <input
+                      id="setup-url"
+                      class="setup-input"
+                      type="text"
+                      placeholder="http://localhost:1234/v1"
+                    />
+                    <button class="setup-btn" onclick="runSetupCheck()">
+                      Check
+                    </button>
+                  </div>
+                </div>
+                <div id="setup-server-msg" style="display: none"></div>
+              </div>
+            </div>
+
+            <!-- Step 2: Model -->
+            <div class="settings-card">
+              <div class="settings-card-header">
+                <span class="setup-step-num">2</span>
+                <div class="settings-card-title">Model</div>
+                <span id="setup-model-badge" style="margin-left: auto"></span>
+              </div>
+              <div class="settings-card-body">
+                <div
+                  style="font-size: 12px; color: var(--muted); line-height: 1.6"
+                >
+                  Load a model in LM Studio. We default to
+                  <code
+                    style="
+                      font-family: monospace;
+                      background: var(--bg);
+                      padding: 1px 5px;
+                      border-radius: 3px;
+                    "
+                    >qwen/qwen3.5-9b</code
+                  >
+                  — any instruction-tuned model works. Click a chip below to
+                  select from loaded models.
+                </div>
+                <div class="settings-field">
+                  <div class="settings-field-label">Model ID</div>
+                  <input
+                    id="setup-model"
+                    class="setup-input"
+                    type="text"
+                    placeholder="qwen/qwen3.5-9b"
+                  />
+                </div>
+                <div
+                  id="setup-model-list"
+                  class="setup-model-list"
+                  style="display: none"
+                ></div>
+                <div id="setup-model-msg" style="display: none"></div>
+              </div>
+            </div>
+
+            <!-- Step 3: Save -->
+            <div class="settings-card">
+              <div class="settings-card-header">
+                <span class="setup-step-num">3</span>
+                <div class="settings-card-title">Save Configuration</div>
+              </div>
+              <div class="settings-card-body">
+                <div
+                  style="font-size: 12px; color: var(--muted); line-height: 1.6"
+                >
+                  Saves to
+                  <code
+                    style="
+                      font-family: monospace;
+                      background: var(--bg);
+                      padding: 1px 5px;
+                      border-radius: 3px;
+                    "
+                    >~/.nclaw/config.json</code
+                  >. Restart nclaw to apply changes.
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px">
+                  <button class="setup-btn primary" onclick="saveSetupConfig()">
+                    Save Configuration
+                  </button>
+                  <span
+                    id="setup-save-msg"
+                    style="font-size: 12px; color: var(--muted)"
+                  ></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- end setup -->
+
+        <!-- ═══ SETTINGS VIEW ═══ -->
+        <div class="view hidden" id="view-settings">
+          <div class="settings-wrap">
+            <!-- Connection Status -->
+            <div class="settings-card">
+              <div class="settings-card-header">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                <div class="settings-card-title">LM Studio Connection</div>
+                <div style="margin-left: auto" id="lm-status-badge"></div>
+              </div>
+              <div class="settings-card-body">
+                <div class="settings-field">
+                  <div class="settings-field-label">Base URL</div>
+                  <div class="settings-field-val" id="cfg-url">Loading…</div>
+                </div>
+                <div class="settings-field">
+                  <div class="settings-field-label">Model</div>
+                  <div class="settings-field-val" id="cfg-model">Loading…</div>
+                </div>
+                <div
+                  style="font-size: 12px; color: var(--muted); line-height: 1.5"
+                >
+                  Configure via
+                  <code
+                    style="
+                      font-family: monospace;
+                      background: var(--bg);
+                      padding: 1px 5px;
+                      border-radius: 3px;
+                    "
+                    >lmStudioBaseURL</code
+                  >
+                  and
+                  <code
+                    style="
+                      font-family: monospace;
+                      background: var(--bg);
+                      padding: 1px 5px;
+                      border-radius: 3px;
+                    "
+                    >lmStudioModel</code
+                  >
+                  in
+                  <code
+                    style="
+                      font-family: monospace;
+                      background: var(--bg);
+                      padding: 1px 5px;
+                      border-radius: 3px;
+                    "
+                    >~/.nclaw/config.json</code
+                  >.
+                </div>
+              </div>
+            </div>
+
+            <!-- Telegram Setup -->
+            <div class="settings-card">
+              <div class="settings-card-header">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#2aabee"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+                <div class="settings-card-title">Telegram Bot</div>
+                <div style="margin-left: auto" id="telegram-badge"></div>
+              </div>
+              <div class="settings-card-body">
+                <div id="telegram-setup-instructions">
+                  <div class="note">
+                    Connect nclaw to Telegram to interact with your agent from
+                    anywhere on your phone. Uses long polling — no public server
+                    or domain name required.
+                  </div>
+                  <div class="steps">
+                    <div class="step">
+                      <div class="step-num">1</div>
+                      <div class="step-body">
+                        <div class="step-text">
+                          Open Telegram and search for
+                          <strong>@BotFather</strong>, then start a chat with
+                          it.
+                        </div>
+                      </div>
+                    </div>
+                    <div class="step">
+                      <div class="step-num">2</div>
+                      <div class="step-body">
+                        <div class="step-text">
+                          Send the
+                          <code
+                            style="
+                              font-family: monospace;
+                              background: rgba(0, 0, 0, 0.06);
+                              padding: 1px 5px;
+                              border-radius: 3px;
+                            "
+                            >/newbot</code
+                          >
+                          command to create your bot.
+                        </div>
+                        <div class="step-code">
+                          <code>/newbot</code
+                          ><button
+                            class="copy-btn"
+                            onclick="copyText('/newbot', this)"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="step">
+                      <div class="step-num">3</div>
+                      <div class="step-body">
+                        <div class="step-text">
+                          Choose a display name (e.g. <em>My nclaw</em>) and
+                          then a unique username ending in
+                          <code
+                            style="
+                              font-family: monospace;
+                              background: rgba(0, 0, 0, 0.06);
+                              padding: 1px 5px;
+                              border-radius: 3px;
+                            "
+                            >_bot</code
+                          >.
+                        </div>
+                      </div>
+                    </div>
+                    <div class="step">
+                      <div class="step-num">4</div>
+                      <div class="step-body">
+                        <div class="step-text">
+                          BotFather sends you a <strong>bot token</strong>. It
+                          looks like:
+                        </div>
+                        <div class="step-code">
+                          <code>1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ</code>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="step">
+                      <div class="step-num">5</div>
+                      <div class="step-body">
+                        <div class="step-text">
+                          Paste the token in the field below and click
+                          <strong>Save Token</strong>. The bot starts
+                          immediately — no restart needed.
+                        </div>
+                      </div>
+                    </div>
+                    <div class="step">
+                      <div class="step-num">6</div>
+                      <div class="step-body">
+                        <div class="step-text">
+                          Search for your bot in Telegram and send
+                          <strong>/start</strong>. You're connected!
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div style="margin-top: 14px">
+                  <div class="settings-field-label" style="margin-bottom: 6px">
+                    Bot Token
+                  </div>
+                  <div style="display: flex; gap: 8px; align-items: center">
+                    <div style="position: relative; flex: 1; display: flex">
+                      <input
+                        id="telegram-token-input"
+                        type="password"
+                        placeholder="1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ"
+                        style="
+                          flex: 1;
+                          font-family: 'SF Mono', Menlo, monospace;
+                          font-size: 12px;
+                          padding: 7px 35px 7px 10px;
+                          border: 1px solid var(--border);
+                          border-radius: 6px;
+                          background: var(--bg);
+                          color: var(--text);
+                          outline: none;
+                        "
+                      />
+                      <button
+                        onclick="
+                          toggleTokenVisibility('telegram-token-input', this)
+                        "
+                        style="
+                          position: absolute;
+                          right: 8px;
+                          top: 50%;
+                          transform: translateY(-50%);
+                          background: none;
+                          border: none;
+                          cursor: pointer;
+                          color: var(--muted);
+                          padding: 4px;
+                          display: flex;
+                          align-items: center;
+                          justify-content: center;
+                        "
+                        title="Toggle visibility"
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="16"
+                          height="16"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="eye-icon"
+                        >
+                          <path
+                            d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
+                          />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      </button>
+                    </div>
+                    <button
+                      onclick="saveTelegramToken()"
+                      style="
+                        padding: 7px 16px;
+                        border-radius: 6px;
+                        border: 1px solid var(--border);
+                        background: var(--surface);
+                        color: var(--text);
+                        cursor: pointer;
+                        font-family: inherit;
+                        font-size: 13px;
+                        white-space: nowrap;
+                      "
+                    >
+                      Save Token
+                    </button>
+                  </div>
+                  <div
+                    id="telegram-save-msg"
+                    style="
+                      font-size: 12px;
+                      margin-top: 6px;
+                      color: var(--muted);
+                    "
+                  ></div>
+                </div>
+                <div style="margin-top: 14px">
+                  <div
+                    style="
+                      display: flex;
+                      align-items: center;
+                      gap: 8px;
+                      margin-bottom: 6px;
+                    "
+                  >
+                    <div class="settings-field-label" style="margin-bottom: 0">
+                      Allowed Users (Whitelist)
+                    </div>
+                    <span id="whitelist-security-badge"></span>
+                  </div>
+                  <div
+                    class="note"
+                    style="margin-bottom: 10px; line-height: 1.6"
+                  >
+                    <strong>How to find your Telegram User ID:</strong><br />
+                    Send
+                    <code
+                      style="
+                        font-family: monospace;
+                        background: rgba(0, 0, 0, 0.06);
+                        padding: 1px 5px;
+                        border-radius: 3px;
+                      "
+                      >/myid</code
+                    >
+                    to your bot in Telegram — it will reply with your numeric ID
+                    and @username.<br />
+                    Paste that ID or username below, then click
+                    <strong>Save Whitelist</strong>. <br /><br />
+                    Leave empty to allow anyone who knows the bot.
+                    Comma-separate multiple entries.
+                  </div>
+                  <div
+                    id="whitelist-tags"
+                    style="
+                      display: flex;
+                      flex-wrap: wrap;
+                      gap: 5px;
+                      margin-bottom: 8px;
+                    "
+                  ></div>
+                  <div style="display: flex; gap: 8px; align-items: center">
+                    <input
+                      id="telegram-allowed-input"
+                      type="text"
+                      placeholder="e.g. 12345678, @myusername"
+                      style="
+                        flex: 1;
+                        font-family: 'SF Mono', Menlo, monospace;
+                        font-size: 12px;
+                        padding: 7px 10px;
+                        border: 1px solid var(--border);
+                        border-radius: 6px;
+                        background: var(--bg);
+                        color: var(--text);
+                        outline: none;
+                      "
+                    />
+                    <button
+                      onclick="saveTelegramAllowedUsers()"
+                      style="
+                        padding: 7px 16px;
+                        border-radius: 6px;
+                        border: 1px solid var(--border);
+                        background: var(--surface);
+                        color: var(--text);
+                        cursor: pointer;
+                        font-family: inherit;
+                        font-size: 13px;
+                        white-space: nowrap;
+                      "
+                    >
+                      Save Whitelist
+                    </button>
+                  </div>
+                  <div
+                    id="telegram-allowed-msg"
+                    style="font-size: 12px; margin-top: 6px"
+                  ></div>
+                </div>
+                <div class="settings-field">
+                  <div class="settings-field-label">Available Bot Commands</div>
+                  <div class="cmd-table" style="margin-top: 6px">
+                    <div class="cmd-row">
+                      <span class="cmd-name">/start</span
+                      ><span class="cmd-desc"
+                        >Welcome message and available commands</span
+                      >
+                    </div>
+                    <div class="cmd-row">
+                      <span class="cmd-name">/myid</span
+                      ><span class="cmd-desc"
+                        >Show your Telegram User ID (works before whitelist
+                        auth)</span
+                      >
+                    </div>
+                    <div class="cmd-row">
+                      <span class="cmd-name">/tasks</span
+                      ><span class="cmd-desc">List all active tasks</span>
+                    </div>
+                    <div class="cmd-row">
+                      <span class="cmd-name">/status</span
+                      ><span class="cmd-desc"
+                        >Show uptime and agent status</span
+                      >
+                    </div>
+                    <div class="cmd-row">
+                      <span class="cmd-name">/clear</span
+                      ><span class="cmd-desc"
+                        >Clear conversation history for this chat</span
+                      >
+                    </div>
+                    <div class="cmd-row">
+                      <span class="cmd-name">any text</span
+                      ><span class="cmd-desc"
+                        >Send a message directly to your agent</span
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Memory & Skills Stats -->
+            <div class="settings-card">
+              <div class="settings-card-header">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
+                  />
+                </svg>
+                <div class="settings-card-title">Memory & Skills</div>
+              </div>
+              <div class="settings-card-body">
+                <div class="stats-grid">
+                  <div class="stat-card">
+                    <div class="stat-card-val" id="mem-facts">—</div>
+                    <div class="stat-card-label">Facts</div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-card-val" id="mem-skills">—</div>
+                    <div class="stat-card-label">Skills</div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-card-val" id="mem-processes">—</div>
+                    <div class="stat-card-label">Processes</div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-card-val" id="mem-tasks">—</div>
+                    <div class="stat-card-label">Active Tasks</div>
+                  </div>
+                </div>
+                <div
+                  style="font-size: 12px; color: var(--muted); line-height: 1.6"
+                >
+                  Skills in
+                  <code
+                    style="
+                      font-family: monospace;
+                      background: var(--bg);
+                      padding: 1px 5px;
+                      border-radius: 3px;
+                    "
+                    >~/.nclaw/skills/*.md</code
+                  >
+                  · Processes in
+                  <code
+                    style="
+                      font-family: monospace;
+                      background: var(--bg);
+                      padding: 1px 5px;
+                      border-radius: 3px;
+                    "
+                    >~/.nclaw/processes/*.md</code
+                  >
+                  · Facts in
+                  <code
+                    style="
+                      font-family: monospace;
+                      background: var(--bg);
+                      padding: 1px 5px;
+                      border-radius: 3px;
+                    "
+                    >~/.nclaw/memory/facts.md</code
+                  >
+                </div>
+              </div>
+            </div>
+
+            <!-- About + Upgrade -->
+            <div class="settings-card">
+              <div class="settings-card-header">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <div class="settings-card-title">About nclaw</div>
+                <span
+                  class="badge ok"
+                  style="margin-left: auto"
+                  id="version-badge"
+                  >v—</span
+                >
+              </div>
+              <div class="settings-card-body">
+                <div
+                  style="font-size: 13px; color: var(--muted); line-height: 1.7"
+                >
+                  <strong style="color: var(--text)">nclaw</strong> is a
+                  markdown-driven local AI agent for MacBook productivity. All
+                  processing runs on your machine via LM Studio — no cloud, no
+                  subscriptions, no data sharing. <br /><br />
+                  ReAct loop · 10 built-in tools · Markdown skills &amp;
+                  processes · Telegram integration · Persistent memory ·
+                  Streaming output
+                </div>
+                <div
+                  id="uptime-display"
+                  style="font-size: 11px; color: var(--muted)"
+                >
+                  Uptime: loading…
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    margin-top: 4px;
+                  "
+                >
+                  <button
+                    id="upgrade-btn"
+                    onclick="runUpgrade()"
+                    style="
+                      font-size: 12px;
+                      padding: 6px 14px;
+                      border-radius: 6px;
+                      border: 1px solid var(--border);
+                      background: var(--surface);
+                      color: var(--text);
+                      cursor: pointer;
+                      font-family: inherit;
+                    "
+                  >
+                    ↑ Upgrade to latest
+                  </button>
+                  <span
+                    id="upgrade-status"
+                    style="font-size: 12px; color: var(--muted)"
+                  ></span>
+                </div>
+                <pre
+                  id="upgrade-log"
+                  style="
+                    display: none;
+                    font-size: 11px;
+                    font-family: 'SF Mono', Menlo, monospace;
+                    background: var(--bg);
+                    border: 1px solid var(--border);
+                    border-radius: 6px;
+                    padding: 10px;
+                    max-height: 180px;
+                    overflow-y: auto;
+                    white-space: pre-wrap;
+                    color: var(--muted);
+                    margin-top: 6px;
+                  "
+                ></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- end settings -->
+      </div>
+      <!-- end .main -->
+    </div>
+    <!-- end .app -->
+
+    <script>
+      // ── Marked setup ──────────────────────────────────────
+      if (typeof marked !== 'undefined') {
+        marked.use({ gfm: true, breaks: true });
+      }
+
+      // ── View management ───────────────────────────────────
+      const VIEWS = ['chat', 'inspector', 'setup', 'settings'];
+      const VIEW_TITLES = {
+        chat: 'Chat',
+        inspector: 'Inspector',
+        setup: 'Setup',
+        settings: 'Settings'
       };
-      pre.appendChild(btn);
-    });
-  }
+      let currentView = 'chat';
 
-  // ── Render a message bubble ───────────────────────────
-  function renderMessage(msg, scroll = true) {
-    const welcome = document.getElementById('chat-welcome');
-    if (welcome) welcome.remove();
+      function setView(name, pushState = true) {
+        VIEWS.forEach((v) => {
+          document
+            .getElementById(`view-${v}`)
+            .classList.toggle('hidden', v !== name);
+          document
+            .getElementById(`nav-${v}`)
+            .classList.toggle('active', v === name);
+        });
+        document.getElementById('view-title').textContent = VIEW_TITLES[name];
+        currentView = name;
+        if (name === 'settings') loadSettings();
+        if (name === 'setup') initSetupView();
 
-    const mc = document.getElementById('chat-messages');
-    const isUser = msg.role === 'user';
-    const div = document.createElement('div');
-    div.className = `msg ${isUser ? 'user' : 'agent'}`;
+        if (pushState) {
+          const url = name === 'chat' ? '/' : `/${name}`;
+          history.pushState({ view: name }, '', url);
+        }
+      }
 
-    const avatar = isUser
-      ? `<div class="msg-avatar">YOU</div>`
-      : `<div class="msg-avatar">NC</div>`;
+      window.addEventListener('popstate', (event) => {
+        if (event.state && event.state.view) {
+          setView(event.state.view, false);
+        } else {
+          setView('chat', false);
+        }
+      });
 
-    const toolsHtml = (!isUser && msg.tools && msg.tools.length > 0)
-      ? `<div class="msg-tools">${msg.tools.map(t => `<span class="tool-chip">${esc(t)}</span>`).join('')}</div>`
-      : '';
+      // Handle initial load
+      const path = window.location.pathname.replace(/^\//, '') || 'chat';
+      if (VIEWS.includes(path)) {
+        setTimeout(() => setView(path, false), 0);
+      }
 
-    const bubbleContent = isUser
-      ? esc(msg.content).replace(/\n/g, '<br>')
-      : renderMd(msg.content);
+      // ── Session token tracking ────────────────────────────
+      let sessionPromptTokens = 0;
+      let sessionCompletionTokens = 0;
+      let sessionTotalTokens = 0;
+      let sessionLlmCalls = 0;
+      let sessionToolCalls = 0;
 
-    div.innerHTML = `
+      function updateTokenDisplay() {
+        const fmt = (n) =>
+          n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+        document.getElementById('ht-prompt').textContent =
+          fmt(sessionPromptTokens);
+        document.getElementById('ht-completion').textContent = fmt(
+          sessionCompletionTokens
+        );
+        document.getElementById('ht-total').textContent =
+          fmt(sessionTotalTokens);
+        document.getElementById('ins-prompt').textContent =
+          sessionPromptTokens.toLocaleString();
+        document.getElementById('ins-completion').textContent =
+          sessionCompletionTokens.toLocaleString();
+        document.getElementById('ins-total').textContent =
+          sessionTotalTokens.toLocaleString();
+        document.getElementById('ins-llm-calls').textContent = sessionLlmCalls;
+        document.getElementById('ins-tool-calls-count').textContent =
+          sessionToolCalls;
+      }
+
+      // ── Chat State ────────────────────────────────────────
+      let displayHistory = [];
+      let isSending = false;
+      let pendingTools = [];
+      let streamBubble = null; // DOM element for current streaming bubble
+      let streamContent = ''; // accumulated raw stream text for current step
+
+      // Restore from sessionStorage
+      try {
+        const saved = sessionStorage.getItem('nclaw-display-history');
+        if (saved) {
+          displayHistory = JSON.parse(saved);
+          if (displayHistory.length > 0) {
+            document.getElementById('chat-welcome').remove();
+            displayHistory.forEach((m) => renderMessage(m, false));
+            const mc = document.getElementById('chat-messages');
+            mc.scrollTop = mc.scrollHeight;
+          }
+        }
+      } catch (_) {}
+
+      function saveDisplayHistory() {
+        try {
+          sessionStorage.setItem(
+            'nclaw-display-history',
+            JSON.stringify(displayHistory)
+          );
+        } catch (_) {}
+      }
+
+      // ── Helpers ───────────────────────────────────────────
+      function fmtTime(iso) {
+        return new Date(iso).toLocaleTimeString('en-US', {
+          hour12: true,
+          hour: 'numeric',
+          minute: '2-digit'
+        });
+      }
+      function esc(str) {
+        const d = document.createElement('div');
+        d.textContent = String(str);
+        return d.innerHTML;
+      }
+      function renderMd(text) {
+        if (typeof marked === 'undefined')
+          return esc(text).replace(/\n/g, '<br>');
+        try {
+          return marked.parse(text);
+        } catch (_) {
+          return esc(text).replace(/\n/g, '<br>');
+        }
+      }
+      function addCopyButtons(container) {
+        container.querySelectorAll('pre').forEach((pre) => {
+          if (pre.querySelector('.copy-code-btn')) return;
+          const btn = document.createElement('button');
+          btn.className = 'copy-code-btn';
+          btn.textContent = 'Copy';
+          btn.onclick = () => {
+            const code = pre.querySelector('code');
+            navigator.clipboard
+              .writeText(code ? code.textContent : pre.textContent)
+              .then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => (btn.textContent = 'Copy'), 2000);
+              })
+              .catch(() => {});
+          };
+          pre.appendChild(btn);
+        });
+      }
+
+      // Parse stream text for <think> blocks
+      // Returns { thinkText, responseText, isThinkOpen }
+      function parseStreamText(raw) {
+        const thinkStart = raw.indexOf('<think>');
+        const thinkEnd = raw.indexOf('</think>');
+        if (thinkStart === -1)
+          return { thinkText: '', responseText: raw, isThinkOpen: false };
+        if (thinkEnd === -1) {
+          // Still inside <think>
+          return {
+            thinkText: raw.slice(thinkStart + 7),
+            responseText: '',
+            isThinkOpen: true
+          };
+        }
+        const thinkText = raw.slice(thinkStart + 7, thinkEnd);
+        const responseText = raw.slice(thinkEnd + 8).trim();
+        return { thinkText, responseText, isThinkOpen: false };
+      }
+
+      // ── Render a message bubble ───────────────────────────
+      function renderMessage(msg, scroll = true) {
+        const welcome = document.getElementById('chat-welcome');
+        if (welcome) welcome.remove();
+        const mc = document.getElementById('chat-messages');
+        const isUser = msg.role === 'user';
+        const div = document.createElement('div');
+        div.className = `msg ${isUser ? 'user' : 'agent'}`;
+
+        const avatar = isUser
+          ? `<div class="msg-avatar">YOU</div>`
+          : `<div class="msg-avatar">NC</div>`;
+        const toolsHtml =
+          !isUser && msg.tools && msg.tools.length > 0
+            ? `<div class="msg-tools">${msg.tools.map((t) => `<span class="tool-chip">${esc(t)}</span>`).join('')}</div>`
+            : '';
+        const tokenHtml =
+          !isUser && msg.tokens
+            ? `<div class="msg-token-badge">${msg.tokens.toLocaleString()} tokens</div>`
+            : '';
+        const bubbleContent = isUser
+          ? esc(msg.content).replace(/\n/g, '<br>')
+          : renderMd(msg.content);
+
+        div.innerHTML = `
       ${avatar}
       <div class="msg-body">
         ${toolsHtml}
         <div class="msg-bubble">${bubbleContent}</div>
-        <div class="msg-time">${fmtTime(msg.time)}</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <div class="msg-time">${fmtTime(msg.time)}</div>
+          ${tokenHtml}
+        </div>
       </div>
     `;
 
-    if (!isUser) addCopyButtons(div);
-    mc.appendChild(div);
-    if (scroll) { mc.scrollTop = mc.scrollHeight; }
-    return div;
-  }
+        if (!isUser) addCopyButtons(div);
+        mc.appendChild(div);
+        if (scroll) mc.scrollTop = mc.scrollHeight;
+        return div;
+      }
 
-  // ── Typing indicator ──────────────────────────────────
-  let typingEl = null;
-
-  function showTyping(toolLabel = '') {
-    const mc = document.getElementById('chat-messages');
-    const welcome = document.getElementById('chat-welcome');
-    if (welcome) welcome.remove();
-
-    if (!typingEl) {
-      typingEl = document.createElement('div');
-      typingEl.className = 'msg-typing';
-      mc.appendChild(typingEl);
-    }
-
-    const toolHtml = toolLabel
-      ? `<span style="font-size:11px;color:var(--accent);margin-left:4px">→ ${esc(toolLabel)}</span>`
-      : '';
-
-    typingEl.innerHTML = `
+      // ── Typing indicator ──────────────────────────────────
+      let typingEl = null;
+      function showTyping(toolLabel = '') {
+        const mc = document.getElementById('chat-messages');
+        const welcome = document.getElementById('chat-welcome');
+        if (welcome) welcome.remove();
+        if (!typingEl) {
+          typingEl = document.createElement('div');
+          typingEl.className = 'msg-typing';
+          mc.appendChild(typingEl);
+        }
+        const toolHtml = toolLabel
+          ? `<span style="font-size:11px;color:var(--accent);margin-left:4px">→ ${esc(toolLabel)}</span>`
+          : '';
+        typingEl.innerHTML = `
       <div class="msg-avatar" style="background:var(--surface);border:1px solid var(--border);color:var(--accent);width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0;margin-top:2px">NC</div>
       <div class="typing-bubble">
         <div class="typing-dots"><span></span><span></span><span></span></div>
         ${toolHtml}
       </div>
     `;
-    mc.scrollTop = mc.scrollHeight;
-  }
-
-  function hideTyping() {
-    if (typingEl) { typingEl.remove(); typingEl = null; }
-  }
-
-  // ── Send message ──────────────────────────────────────
-  async function sendMessage() {
-    if (isSending) return;
-    const input = document.getElementById('chat-input');
-    const text = input.value.trim();
-    if (!text) return;
-
-    isSending = true;
-    pendingTools = [];
-    const sendBtn = document.getElementById('send-btn');
-    sendBtn.disabled = true;
-    input.disabled = true;
-    input.value = '';
-    input.style.height = 'auto';
-
-    // Render user bubble
-    const userMsg = { role: 'user', content: text, time: new Date().toISOString() };
-    displayHistory.push(userMsg);
-    renderMessage(userMsg);
-    saveDisplayHistory();
-
-    showTyping();
-
-    try {
-      const resp = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text }),
-      });
-
-      if (!resp.ok) {
-        let errMsg = `HTTP ${resp.status}`;
-        try { const e = await resp.json(); errMsg = e.error || errMsg; } catch (_) {}
-        throw new Error(errMsg);
+        mc.scrollTop = mc.scrollHeight;
+      }
+      function hideTyping() {
+        if (typingEl) {
+          typingEl.remove();
+          typingEl = null;
+        }
       }
 
-      const data = await resp.json();
-      hideTyping();
+      // ── Create / update streaming bubble in chat ──────────
+      function getOrCreateStreamBubble() {
+        if (streamBubble) return streamBubble;
+        hideTyping();
+        const mc = document.getElementById('chat-messages');
+        const welcome = document.getElementById('chat-welcome');
+        if (welcome) welcome.remove();
 
-      const agentMsg = {
-        role: 'agent',
-        content: data.response,
-        time: new Date().toISOString(),
-        tools: pendingTools.slice(),
-      };
-      displayHistory.push(agentMsg);
-      renderMessage(agentMsg);
-      saveDisplayHistory();
+        streamBubble = document.createElement('div');
+        streamBubble.className = 'msg agent';
+        streamBubble.innerHTML = `
+      <div class="msg-avatar">NC</div>
+      <div class="msg-body">
+        <div class="think-wrap" id="stream-think-wrap" style="display:none">
+          <div class="think-header" onclick="toggleThink(this)">
+            <span>💭</span><span>Thinking…</span><span class="think-chevron">▼</span>
+          </div>
+          <div class="think-body" id="stream-think-body"></div>
+        </div>
+        <div class="msg-bubble" id="stream-response-bubble"><span id="stream-text"></span><span class="stream-cursor"></span></div>
+      </div>
+    `;
+        mc.appendChild(streamBubble);
+        return streamBubble;
+      }
 
-    } catch (e) {
-      hideTyping();
-      const errMsg = {
-        role: 'agent',
-        content: `**Error:** ${e.message}\n\nMake sure LM Studio is running at the configured URL.`,
-        time: new Date().toISOString(),
-        tools: [],
-      };
-      displayHistory.push(errMsg);
-      renderMessage(errMsg);
-      saveDisplayHistory();
-    }
+      function updateStreamBubble(rawAccumulated) {
+        const { thinkText, responseText, isThinkOpen } =
+          parseStreamText(rawAccumulated);
+        const bubble = getOrCreateStreamBubble();
+        const mc = document.getElementById('chat-messages');
 
-    pendingTools = [];
-    isSending = false;
-    sendBtn.disabled = false;
-    input.disabled = false;
-    input.focus();
-  }
+        if (thinkText) {
+          const tw = document.getElementById('stream-think-wrap');
+          const tb = document.getElementById('stream-think-body');
+          if (tw) tw.style.display = '';
+          if (tb) tb.textContent = thinkText;
+        }
 
-  // ── Clear chat ────────────────────────────────────────
-  function clearChat() {
-    if (!confirm('Clear chat history?')) return;
-    displayHistory = [];
-    saveDisplayHistory();
-    // Also clear server-side history
-    fetch('/api/chat/clear', { method: 'POST' }).catch(() => {});
+        const st = document.getElementById('stream-text');
+        if (st) st.textContent = responseText;
 
-    const mc = document.getElementById('chat-messages');
-    mc.innerHTML = '';
-    const welcome = document.createElement('div');
-    welcome.className = 'chat-welcome';
-    welcome.id = 'chat-welcome';
-    welcome.innerHTML = `
+        mc.scrollTop = mc.scrollHeight;
+      }
+
+      function toggleThink(header) {
+        header.classList.toggle('open');
+      }
+
+      // ── Finalize streaming bubble with rendered markdown ──
+      function finalizeStreamBubble(finalText, tools, tokenCount) {
+        if (!streamBubble) return false;
+        const body = streamBubble.querySelector('.msg-body');
+        const responseBubble = document.getElementById(
+          'stream-response-bubble'
+        );
+        if (responseBubble) {
+          responseBubble.innerHTML = renderMd(finalText);
+          addCopyButtons(responseBubble);
+        }
+        // Remove cursor
+        const cursor = streamBubble.querySelector('.stream-cursor');
+        if (cursor) cursor.remove();
+
+        // Add tool chips
+        if (tools && tools.length > 0) {
+          const toolsEl = document.createElement('div');
+          toolsEl.className = 'msg-tools';
+          toolsEl.innerHTML = tools
+            .map((t) => `<span class="tool-chip">${esc(t)}</span>`)
+            .join('');
+          body.insertBefore(toolsEl, body.firstChild);
+        }
+
+        // Add time + token badge row
+        const metaRow = document.createElement('div');
+        metaRow.style.cssText = 'display:flex;gap:6px;align-items:center';
+        const timeEl = document.createElement('div');
+        timeEl.className = 'msg-time';
+        timeEl.textContent = fmtTime(new Date().toISOString());
+        metaRow.appendChild(timeEl);
+        if (tokenCount) {
+          const tokEl = document.createElement('div');
+          tokEl.className = 'msg-token-badge';
+          tokEl.textContent = tokenCount.toLocaleString() + ' tokens';
+          metaRow.appendChild(tokEl);
+        }
+        body.appendChild(metaRow);
+
+        streamBubble = null;
+        streamContent = '';
+        return true;
+      }
+
+      // ── Send message ──────────────────────────────────────
+      async function sendMessage() {
+        if (isSending) return;
+        const input = document.getElementById('chat-input');
+        const text = input.value.trim();
+        if (!text) return;
+
+        isSending = true;
+        pendingTools = [];
+        streamBubble = null;
+        streamContent = '';
+
+        const sendBtn = document.getElementById('send-btn');
+        sendBtn.disabled = true;
+        input.disabled = true;
+        input.value = '';
+        input.style.height = 'auto';
+
+        const userMsg = {
+          role: 'user',
+          content: text,
+          time: new Date().toISOString()
+        };
+        displayHistory.push(userMsg);
+        renderMessage(userMsg);
+        saveDisplayHistory();
+        showTyping();
+
+        // Add user card to inspector
+        addInspectorUserCard(text);
+
+        try {
+          const resp = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: text })
+          });
+
+          if (!resp.ok) {
+            let errMsg = `HTTP ${resp.status}`;
+            try {
+              const e = await resp.json();
+              errMsg = e.error || errMsg;
+            } catch (_) {}
+            throw new Error(errMsg);
+          }
+
+          const data = await resp.json();
+          hideTyping();
+
+          // Last LLM response token count for the badge
+          const lastTokens = sessionTotalTokens > 0 ? null : null; // use running total increment
+
+          const didFinalize = finalizeStreamBubble(
+            data.response,
+            pendingTools.slice(),
+            null
+          );
+          if (!didFinalize) {
+            const agentMsg = {
+              role: 'agent',
+              content: data.response,
+              time: new Date().toISOString(),
+              tools: pendingTools.slice()
+            };
+            displayHistory.push(agentMsg);
+            renderMessage(agentMsg);
+          } else {
+            displayHistory.push({
+              role: 'agent',
+              content: data.response,
+              time: new Date().toISOString(),
+              tools: pendingTools.slice()
+            });
+          }
+          saveDisplayHistory();
+        } catch (e) {
+          hideTyping();
+          if (streamBubble) {
+            streamBubble.remove();
+            streamBubble = null;
+            streamContent = '';
+          }
+          const errMsg = {
+            role: 'agent',
+            content: `**Error:** ${e.message}\n\nMake sure LM Studio is running at the configured URL.`,
+            time: new Date().toISOString(),
+            tools: []
+          };
+          displayHistory.push(errMsg);
+          renderMessage(errMsg);
+          saveDisplayHistory();
+        }
+
+        pendingTools = [];
+        isSending = false;
+        sendBtn.disabled = false;
+        input.disabled = false;
+        input.focus();
+      }
+
+      // ── Clear chat ────────────────────────────────────────
+      function clearChat() {
+        if (!confirm('Clear chat history?')) return;
+        displayHistory = [];
+        saveDisplayHistory();
+        fetch('/api/chat/clear', { method: 'POST' }).catch(() => {});
+        const mc = document.getElementById('chat-messages');
+        mc.innerHTML = '';
+        const welcome = document.createElement('div');
+        welcome.className = 'chat-welcome';
+        welcome.id = 'chat-welcome';
+        welcome.innerHTML = `
       <div class="welcome-logo">NCLAW</div>
       <h3>Your local AI agent</h3>
       <p>Powered by LM Studio · All processing on your machine · No data leaves</p>
@@ -1202,276 +2817,845 @@
         <button class="example-prompt" onclick="usePrompt(this)">scan this project</button>
       </div>
     `;
-    mc.appendChild(welcome);
-  }
+        mc.appendChild(welcome);
+      }
 
-  function usePrompt(el) {
-    const input = document.getElementById('chat-input');
-    input.value = el.textContent;
-    autoResize(input);
-    input.focus();
-    setView('chat');
-  }
+      function usePrompt(el) {
+        const input = document.getElementById('chat-input');
+        input.value = el.textContent;
+        autoResize(input);
+        input.focus();
+        setView('chat');
+      }
 
-  // ── Auto-resize textarea ──────────────────────────────
-  function autoResize(el) {
-    el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 160) + 'px';
-  }
+      function autoResize(el) {
+        el.style.height = 'auto';
+        el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+      }
 
-  const chatInput = document.getElementById('chat-input');
-  chatInput.addEventListener('input', function() { autoResize(this); });
-  chatInput.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-  });
-
-  // ── SSE Connection ────────────────────────────────────
-  const connDot = document.getElementById('conn-dot');
-  const connStatusEl = document.getElementById('conn-status');
-
-  function connectSSE() {
-    const es = new EventSource('/events');
-
-    es.onopen = () => {
-      connDot.className = 'nav-conn-dot connected';
-      connStatusEl.textContent = 'Connected';
-    };
-
-    es.onerror = () => {
-      connDot.className = 'nav-conn-dot error';
-      connStatusEl.textContent = 'Reconnecting…';
-    };
-
-    const sseHandlers = {
-      user_input({ input, source, timestamp }) {
-        const src = source || 'cli';
-        addFeedEvent('user_input', `
-          <div class="event-meta">
-            <span class="event-tag">USER</span>
-            <span class="event-source source-${src === 'telegram' ? 'telegram' : src === 'web' ? 'web' : 'cli'}">${esc(src)}</span>
-            <span class="event-time">${monTime(timestamp)}</span>
-          </div>
-          <div class="event-content">${esc(input)}</div>
-        `);
-      },
-
-      thinking({ step, timestamp }) {
-        addFeedEvent('thinking', `
-          <div class="event-meta">
-            <span class="event-tag">THINK</span>
-            <span class="event-time">${monTime(timestamp)}</span>
-          </div>
-          <div class="event-content">Step ${step} — reasoning…</div>
-        `);
-      },
-
-      tool_call({ toolName, args, timestamp }) {
-        const argsStr = JSON.stringify(args, null, 2);
-        const id = 'tc-' + Date.now() + Math.random().toString(36).slice(2);
-        const { text, trunc, full } = truncate(argsStr, 200);
-        addFeedEvent('tool_call', `
-          <div class="event-meta">
-            <span class="event-tag">TOOL CALL</span>
-            <span class="event-time">${monTime(timestamp)}</span>
-          </div>
-          <div class="tool-name">${esc(toolName)}</div>
-          <pre class="tool-args" id="${id}">${text}${trunc ? expander(id, full) : ''}</pre>
-        `);
-        // Update typing indicator in chat if currently sending
-        if (isSending) {
-          if (!pendingTools.includes(toolName)) pendingTools.push(toolName);
-          showTyping(toolName);
-        }
-      },
-
-      tool_result({ toolName, success, result, timestamp }) {
-        const cls = success ? 'success' : 'failure';
-        const label = success ? 'OK' : 'FAIL';
-        const preview = success
-          ? (result && result.data ? String(result.data).slice(0, 200) : 'success')
-          : (result && result.error ? result.error : 'unknown error');
-        const id = 'tr-' + Date.now() + Math.random().toString(36).slice(2);
-        const { text, trunc, full } = truncate(preview, 200);
-        addFeedEvent('tool_result', `
-          <div class="event-meta">
-            <span class="event-tag">${label}</span>
-            <span style="color:var(--muted);font-size:11px">${esc(toolName)}</span>
-            <span class="event-time">${monTime(timestamp)}</span>
-          </div>
-          <pre class="event-content" id="${id}">${text}${trunc ? expander(id, full) : ''}</pre>
-        `, cls);
-      },
-
-      response({ source, timestamp }) {
-        const src = source || 'cli';
-        addFeedEvent('response', `
-          <div class="event-meta">
-            <span class="event-tag">RESPONSE</span>
-            <span class="event-source source-${src === 'telegram' ? 'telegram' : src === 'web' ? 'web' : 'cli'}">${esc(src)}</span>
-            <span class="event-time">${monTime(timestamp)}</span>
-          </div>
-          <div class="event-content" style="color:var(--muted);font-style:italic">Response sent via ${esc(src)}</div>
-        `);
-        refreshStatus();
-        refreshTasks();
-        refreshFacts();
-      },
-
-      error({ error, timestamp }) {
-        addFeedEvent('error', `
-          <div class="event-meta">
-            <span class="event-tag">ERROR</span>
-            <span class="event-time">${monTime(timestamp)}</span>
-          </div>
-          <div class="event-content">${esc(error)}</div>
-        `);
-      },
-    };
-
-    for (const [name, handler] of Object.entries(sseHandlers)) {
-      es.addEventListener(name, (e) => {
-        try { handler(JSON.parse(e.data)); } catch (_) {}
+      const chatInput = document.getElementById('chat-input');
+      chatInput.addEventListener('input', function () {
+        autoResize(this);
       });
-    }
-  }
+      chatInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
 
-  connectSSE();
+      // ═════════════════════════════════════════════════════
+      // INSPECTOR
+      // ═════════════════════════════════════════════════════
+      const insStepCards = new Map(); // step -> { card }
+      const insStreamAccum = new Map(); // step -> accumulated text
+      const pendingToolCards = {}; // toolName -> [{ card, bodyEl }]
 
-  // ── Monitor helpers ───────────────────────────────────
-  let feedAutoScroll = true;
-  const feed = document.getElementById('feed');
-  feed.addEventListener('scroll', () => {
-    feedAutoScroll = feed.scrollTop + feed.clientHeight >= feed.scrollHeight - 20;
-  });
+      function clearInspector() {
+        document.getElementById('ins-feed').innerHTML =
+          `<div style="padding:24px;text-align:center;color:#78716c;font-size:12px">Inspector cleared. Send a message to start inspecting…</div>`;
+        insStepCards.clear();
+        insStreamAccum.clear();
+        for (const k in pendingToolCards) delete pendingToolCards[k];
+        sessionPromptTokens =
+          sessionCompletionTokens =
+          sessionTotalTokens =
+          sessionLlmCalls =
+          sessionToolCalls =
+            0;
+        updateTokenDisplay();
+      }
 
-  function monTime(iso) {
-    return new Date(iso).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  }
+      function insTime(iso) {
+        return new Date(iso).toLocaleTimeString('en-US', {
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
+      }
 
-  function truncate(str, max) {
-    const s = String(str);
-    if (s.length <= max) return { text: esc(s), trunc: false };
-    return { text: esc(s.slice(0, max)), trunc: true, full: esc(s) };
-  }
+      // Append a card to inspector feed — NO autoscroll
+      function insAppend(card) {
+        const feed = document.getElementById('ins-feed');
+        const placeholder = feed.querySelector('[data-placeholder]');
+        if (placeholder) placeholder.remove();
+        feed.appendChild(card);
+      }
 
-  function expander(id, fullText) {
-    const safeText = fullText.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
-    return `<span class="truncated"> … (truncated)</span>
-      <button class="expand-btn" onclick="
-        document.getElementById('${id}').innerHTML = \`${safeText}\`;
-        this.previousElementSibling.remove(); this.remove();
-      ">Show full</button>`;
-  }
+      function makeInsCard({
+        badgeClass,
+        badgeLabel,
+        infoHtml,
+        timeStr,
+        bodyHtml,
+        startExpanded = false
+      }) {
+        const card = document.createElement('div');
+        card.className = 'ins-card' + (startExpanded ? ' expanded' : '');
+        card.innerHTML = `
+      <div class="ins-card-head" onclick="this.parentElement.classList.toggle('expanded')">
+        <span class="ins-badge ${badgeClass}">${badgeLabel}</span>
+        <span class="ins-card-info">${infoHtml}</span>
+        <span class="ins-card-time">${timeStr}</span>
+        <span class="ins-chevron">▼</span>
+      </div>
+      <div class="ins-card-body">${bodyHtml}</div>
+    `;
+        insAppend(card);
+        return card;
+      }
 
-  function addFeedEvent(type, html, cls = '') {
-    const placeholder = feed.querySelector('.ev-thinking[style]');
-    if (placeholder) placeholder.remove();
-    const div = document.createElement('div');
-    div.className = `event ev-${type}${cls ? ' ' + cls : ''}`;
-    div.innerHTML = html;
-    feed.appendChild(div);
-    if (feedAutoScroll) feed.scrollTop = feed.scrollHeight;
-  }
+      function addInspectorUserCard(text) {
+        makeInsCard({
+          badgeClass: 'ins-badge-user',
+          badgeLabel: 'USER',
+          infoHtml: `<strong>${esc(text.slice(0, 80))}${text.length > 80 ? '…' : ''}</strong>`,
+          timeStr: insTime(new Date().toISOString()),
+          bodyHtml: `<div style="font-size:13px;color:var(--text);padding:4px 0;white-space:pre-wrap">${esc(text)}</div>`,
+          startExpanded: false
+        });
+      }
 
-  function clearFeed() {
-    feed.innerHTML = `<div class="event ev-thinking" style="opacity:0.5">
-      <div class="event-meta"><span class="event-tag">CLEARED</span></div>
-      <div class="event-content">Feed cleared. Waiting for activity…</div>
-    </div>`;
-  }
+      // Build HTML for the full message context list
+      function buildMsgsHtml(messages) {
+        if (!messages || !messages.length) return '';
+        return (
+          '<div class="ins-msgs">' +
+          messages
+            .map((m, i) => {
+              const roleClass =
+                m.role === 'system'
+                  ? 'ins-msg-system'
+                  : m.role === 'user'
+                    ? 'ins-msg-user'
+                    : m.role === 'tool'
+                      ? 'ins-msg-tool'
+                      : 'ins-msg-assistant';
+              const roleLabel = m.role.toUpperCase();
+              const content = m.content || '';
+              const preview =
+                content.slice(0, 80) + (content.length > 80 ? '…' : '');
 
-  // ── API calls ─────────────────────────────────────────
-  async function refreshStatus() {
-    try {
-      const r = await fetch('/api/status');
-      const d = await r.json();
-      document.getElementById('stat-facts').textContent  = d.factsCount;
-      document.getElementById('stat-skills').textContent = d.skillsCount;
-      document.getElementById('stat-tasks').textContent  = d.activeTasksCount;
-      document.getElementById('mem-facts').textContent      = d.factsCount;
-      document.getElementById('mem-skills').textContent     = d.skillsCount;
-      document.getElementById('mem-processes').textContent  = d.processesCount;
-      document.getElementById('mem-tasks').textContent      = d.activeTasksCount;
-      const uptime = document.getElementById('uptime-display');
-      if (uptime) uptime.textContent = `Uptime: ${fmtUptime(d.uptime)}`;
-    } catch (_) {}
-  }
+              let toolCallsSnip = '';
+              if (m.tool_calls && m.tool_calls.length) {
+                toolCallsSnip = m.tool_calls
+                  .map(
+                    (tc) =>
+                      `\n→ ${tc.function.name}(${tc.function.arguments.slice(0, 120)})`
+                  )
+                  .join('');
+              }
+              const bodyText = content + toolCallsSnip;
 
-  function fmtUptime(s) {
-    if (s < 60) return `${s}s`;
-    if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
-    return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
-  }
+              return `<div class="ins-msg ${roleClass}" onclick="this.classList.toggle('open')">
+        <div class="ins-msg-head">
+          <span>${roleLabel}</span>
+          ${m.name ? `<span style="opacity:0.7">${esc(m.name)}</span>` : ''}
+          <span class="ins-msg-len">${content.length} chars ▾</span>
+        </div>
+        <div class="ins-msg-body">${esc(bodyText)}</div>
+      </div>`;
+            })
+            .join('') +
+          '</div>'
+        );
+      }
 
-  async function refreshTasks() {
-    try {
-      const r = await fetch('/api/tasks/active');
-      const tasks = await r.json();
-      const el = document.getElementById('tasks-list');
-      if (!tasks.length) { el.innerHTML = '<div class="empty">No active tasks</div>'; return; }
-      el.innerHTML = tasks.map(t => {
-        const nameMatch = t.content.match(/# Task: (.+)/);
-        const name = nameMatch ? nameMatch[1] : t.file.replace('.md', '');
-        const subtasks = t.content.split('\n')
-          .filter(l => l.match(/^- \[[ x]\]/))
-          .map(l => {
-            const done = l.startsWith('- [x]');
-            const text = l.replace(/^- \[[ x]\] /, '');
-            return `<div class="task-subtask${done ? ' done' : ''}">
-              <span class="task-check">${done ? '✓' : '○'}</span>
-              <span>${esc(text)}</span>
-            </div>`;
-          }).join('');
-        return `<div class="task-item">
-          <div class="task-name">${esc(name)}</div>
-          ${subtasks || '<div class="empty">No subtasks</div>'}
-        </div>`;
-      }).join('');
-    } catch (_) {}
-  }
+      function addInspectorRequestCard(
+        step,
+        messages,
+        messageCount,
+        model,
+        toolCount,
+        timestamp
+      ) {
+        sessionLlmCalls++;
+        updateTokenDisplay();
+        const msgsHtml = buildMsgsHtml(messages);
+        makeInsCard({
+          badgeClass: 'ins-badge-req',
+          badgeLabel: `STEP ${step}`,
+          infoHtml: `<strong>${esc(model)}</strong> · ${messageCount} msgs · ${toolCount} tools`,
+          timeStr: insTime(timestamp),
+          bodyHtml: `
+        <div style="font-size:11px;color:#78716c;margin-bottom:6px">
+          Model: <strong style="color:#a5b4fc">${esc(model)}</strong> &nbsp;·&nbsp;
+          ReAct step: <strong style="color:#e5e2dc">${step}</strong> &nbsp;·&nbsp;
+          Tools available: <strong style="color:#e5e2dc">${toolCount}</strong>
+        </div>
+        <button onclick="insToggleAllMsgs(this)" style="font-size:10px;color:#78716c;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;background:none;border:none;cursor:pointer;padding:0;font-family:inherit">▶ Context · ${messageCount} messages — expand all</button>
+        ${msgsHtml}
+      `,
+          startExpanded: false
+        });
+      }
 
-  async function refreshFacts() {
-    try {
-      const r = await fetch('/api/memory/facts');
-      const text = await r.text();
-      const el = document.getElementById('facts-list');
-      const facts = text.split('\n').filter(l => l.trim().startsWith('-'));
-      if (!facts.length) { el.innerHTML = '<div class="empty">No facts recorded</div>'; return; }
-      el.innerHTML = facts.map(f =>
-        `<div class="fact-item">${esc(f.replace(/^-\s*/, ''))}</div>`
-      ).join('');
-    } catch (_) {}
-  }
+      // Stream card: created on first chunk, holds raw pre + rendered md view
+      function addOrUpdateStreamCard(step, timestamp) {
+        if (insStepCards.has(step)) return insStepCards.get(step);
+        const card = document.createElement('div');
+        card.className = 'ins-card expanded';
+        card.id = `ins-step-card-${step}`;
+        card.innerHTML = `
+      <div class="ins-card-head" onclick="this.parentElement.classList.toggle('expanded')">
+        <span class="ins-badge ins-badge-stream">STREAM ${step}</span>
+        <span class="ins-card-info" id="ins-stream-info-${step}">live…</span>
+        <span class="ins-card-time">${insTime(timestamp)}</span>
+        <span class="ins-chevron">▼</span>
+      </div>
+      <div class="ins-card-body">
+        <div class="ins-stream-tabs">
+          <button class="ins-tab active" onclick="insTabSwitch(this,'ins-stream-pre-${step}','ins-stream-md-${step}',true);event.stopPropagation()">Raw</button>
+          <button class="ins-tab" onclick="insTabSwitch(this,'ins-stream-pre-${step}','ins-stream-md-${step}',false);event.stopPropagation()">Rendered</button>
+        </div>
+        <pre class="ins-pre stream-live" id="ins-stream-pre-${step}"></pre>
+        <div class="ins-md-view" id="ins-stream-md-${step}" style="display:none"></div>
+      </div>
+    `;
+        insAppend(card);
+        insStepCards.set(step, { card });
+        return insStepCards.get(step);
+      }
 
-  // ── Settings ──────────────────────────────────────────
-  async function loadSettings() {
-    try {
-      const r = await fetch('/api/config');
-      const d = await r.json();
-      document.getElementById('cfg-url').textContent   = d.lmStudioUrl;
-      document.getElementById('cfg-model').textContent = d.model;
-      document.getElementById('lm-status-badge').innerHTML = `<span class="badge ok">● Running</span>`;
-      document.getElementById('telegram-badge').innerHTML = d.hasTelegram
-        ? `<span class="badge ok">● Active</span>`
-        : `<span class="badge warn">Not configured</span>`;
-    } catch (_) {
-      document.getElementById('lm-status-badge').innerHTML = `<span class="badge err">● Offline</span>`;
-    }
-    refreshStatus();
-  }
+      function insToggleAllMsgs(btn) {
+        const msgs = btn.parentElement.querySelectorAll('.ins-msg');
+        const allOpen = [...msgs].every((m) => m.classList.contains('open'));
+        msgs.forEach((m) => m.classList.toggle('open', !allOpen));
+        btn.textContent =
+          (allOpen ? '▶' : '▼') +
+          btn.textContent
+            .slice(1)
+            .replace('expand all', allOpen ? 'expand all' : 'collapse all')
+            .replace('collapse all', allOpen ? 'expand all' : 'collapse all');
+      }
 
-  function copyText(text, btn) {
-    navigator.clipboard.writeText(text)
-      .then(() => { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy', 2000); })
-      .catch(() => { btn.textContent = 'Failed'; setTimeout(() => btn.textContent = 'Copy', 2000); });
-  }
+      function insTabSwitch(btn, rawId, mdId, showRaw) {
+        btn.parentElement
+          .querySelectorAll('.ins-tab')
+          .forEach((t) => t.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(rawId).style.display = showRaw ? '' : 'none';
+        document.getElementById(mdId).style.display = showRaw ? 'none' : '';
+      }
 
-  // ── Init ──────────────────────────────────────────────
-  refreshStatus();
-  refreshTasks();
-  refreshFacts();
-  setInterval(() => { refreshStatus(); refreshTasks(); refreshFacts(); }, 15000);
-  document.getElementById('chat-input').focus();
-</script>
-</body>
+      function appendInspectorStream(step, text, timestamp) {
+        addOrUpdateStreamCard(step, timestamp);
+        const pre = document.getElementById(`ins-stream-pre-${step}`);
+        if (!pre) return;
+        const current = insStreamAccum.get(step) || '';
+        const updated = current + text;
+        insStreamAccum.set(step, updated);
+
+        const { thinkText, responseText, isThinkOpen } =
+          parseStreamText(updated);
+        let html = '';
+        if (thinkText) {
+          html += `<span class="ins-think-text">&lt;think&gt;\n${esc(thinkText)}\n${isThinkOpen ? '' : '&lt;/think&gt;\n'}</span>`;
+        }
+        if (responseText) {
+          html += `<span class="ins-response-text">${esc(responseText)}</span>`;
+        }
+        if (!thinkText && !responseText) html = esc(updated);
+        pre.innerHTML =
+          html +
+          '<span style="color:var(--accent);animation:blink 0.8s step-end infinite">▋</span>';
+        // NO autoscroll — user reads at their own pace
+      }
+
+      function finalizeInspectorStream(step) {
+        const pre = document.getElementById(`ins-stream-pre-${step}`);
+        if (!pre) return;
+        // Remove cursor
+        const cursor = pre.querySelector('span:last-child');
+        if (cursor && cursor.style.animation !== undefined) cursor.remove();
+
+        // Populate rendered markdown view
+        const accumulated = insStreamAccum.get(step) || '';
+        const { responseText } = parseStreamText(accumulated);
+        const mdEl = document.getElementById(`ins-stream-md-${step}`);
+        if (mdEl) mdEl.innerHTML = renderMd(responseText || accumulated);
+
+        // Update info label
+        const info = document.getElementById(`ins-stream-info-${step}`);
+        if (info) info.textContent = `${accumulated.length} chars`;
+      }
+
+      function updateInspectorTokens(step, usage) {
+        if (!usage) return;
+        const p = usage.prompt_tokens || 0;
+        const c = usage.completion_tokens || 0;
+        const t = usage.total_tokens || p + c;
+        sessionPromptTokens += p;
+        sessionCompletionTokens += c;
+        sessionTotalTokens += t;
+        updateTokenDisplay();
+        finalizeInspectorStream(step);
+      }
+
+      // Tool call: create a pending card, wait for result to fill it in
+      function addInspectorToolCard(toolName, args, timestamp) {
+        sessionToolCalls++;
+        updateTokenDisplay();
+        const argsStr = JSON.stringify(args, null, 2);
+
+        const card = document.createElement('div');
+        card.className = 'ins-card expanded';
+
+        const bodyEl = document.createElement('div');
+        bodyEl.className = 'ins-card-body';
+        bodyEl.innerHTML = `
+      <div style="font-size:10px;color:#78716c;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px">Input</div>
+      <pre class="ins-pre">${esc(argsStr)}</pre>
+      <div class="ins-tool-result-pending" style="font-size:11px;color:#78716c;font-style:italic;margin-top:8px">Waiting for result…</div>
+    `;
+        card.innerHTML = `
+      <div class="ins-card-head" onclick="this.parentElement.classList.toggle('expanded')">
+        <span class="ins-badge ins-badge-tool">TOOL</span>
+        <span class="ins-card-info"><strong>${esc(toolName)}</strong></span>
+        <span class="ins-card-time">${insTime(timestamp)}</span>
+        <span class="ins-chevron">▼</span>
+      </div>
+    `;
+        card.appendChild(bodyEl);
+        insAppend(card);
+
+        if (!pendingToolCards[toolName]) pendingToolCards[toolName] = [];
+        pendingToolCards[toolName].push({ card, bodyEl });
+      }
+
+      // Tool result: update the matching pending tool card
+      function addInspectorResultCard(toolName, success, result, timestamp) {
+        const queue = pendingToolCards[toolName];
+        if (queue && queue.length > 0) {
+          const { card, bodyEl } = queue.shift();
+          if (queue.length === 0) delete pendingToolCards[toolName];
+
+          // Update badge
+          const badge = card.querySelector('.ins-badge');
+          if (badge) {
+            badge.className = `ins-badge ${success ? 'ins-badge-result-ok' : 'ins-badge-result-fail'}`;
+            badge.textContent = (success ? '✓ ' : '✗ ') + toolName;
+          }
+          // Replace pending placeholder with result
+          const pending = bodyEl.querySelector('.ins-tool-result-pending');
+          const resultText = success
+            ? typeof result.data === 'string'
+              ? result.data
+              : JSON.stringify(result.data, null, 2)
+            : result.error || JSON.stringify(result, null, 2);
+          const resultDiv = document.createElement('div');
+          resultDiv.innerHTML = `
+        <div style="font-size:10px;color:#78716c;text-transform:uppercase;letter-spacing:0.5px;margin:8px 0 5px">Output</div>
+        <pre class="ins-pre" style="color:${success ? '#4ade80' : '#f87171'}">${esc(resultText)}</pre>
+      `;
+          if (pending) pending.replaceWith(resultDiv);
+          else bodyEl.appendChild(resultDiv);
+          return;
+        }
+        // Fallback: standalone result card (tool not found in pending queue)
+        makeInsCard({
+          badgeClass: success ? 'ins-badge-result-ok' : 'ins-badge-result-fail',
+          badgeLabel: (success ? '✓ ' : '✗ ') + toolName,
+          infoHtml: success ? '' : esc(result.error || 'error'),
+          timeStr: insTime(timestamp),
+          bodyHtml: `<pre class="ins-pre">${esc(JSON.stringify(result, null, 2))}</pre>`,
+          startExpanded: false
+        });
+      }
+
+      // ── SSE Connection ────────────────────────────────────
+      const connDot = document.getElementById('conn-dot');
+      const connStatusEl = document.getElementById('conn-status');
+
+      function connectSSE() {
+        const es = new EventSource('/events');
+
+        es.onopen = () => {
+          connDot.className = 'nav-conn-dot connected';
+          connStatusEl.textContent = 'Connected';
+        };
+        es.onerror = () => {
+          connDot.className = 'nav-conn-dot error';
+          connStatusEl.textContent = 'Reconnecting…';
+        };
+
+        const sseHandlers = {
+          user_input({ input, source, timestamp }) {
+            // handled via chat UI
+          },
+
+          thinking({ step, timestamp }) {
+            // no-op — inspector shows request card per step
+          },
+
+          llm_request({
+            step,
+            messages,
+            messageCount,
+            model,
+            toolCount,
+            source,
+            timestamp
+          }) {
+            addInspectorRequestCard(
+              step,
+              messages,
+              messageCount,
+              model,
+              toolCount,
+              timestamp
+            );
+          },
+
+          llm_response({
+            step,
+            usage,
+            hasToolCalls,
+            toolCallCount,
+            source,
+            timestamp
+          }) {
+            updateInspectorTokens(step, usage);
+          },
+
+          stream_chunk({ step, text, source, timestamp }) {
+            if (isSending && source === 'web') {
+              streamContent += text;
+              updateStreamBubble(streamContent);
+            }
+            appendInspectorStream(step, text, timestamp);
+          },
+
+          tool_call({ toolName, args, timestamp, source }) {
+            addInspectorToolCard(toolName, args, timestamp);
+            if (isSending) {
+              if (!pendingTools.includes(toolName)) pendingTools.push(toolName);
+              if (streamBubble) {
+                const cursor = streamBubble.querySelector('.stream-cursor');
+                if (cursor) cursor.style.animation = 'none';
+              }
+              streamContent = '';
+              showTyping(toolName);
+            }
+          },
+
+          tool_result({ toolName, success, result, timestamp, source }) {
+            addInspectorResultCard(toolName, success, result, timestamp);
+            if (isSending) {
+              streamBubble = null;
+              streamContent = '';
+            }
+          },
+
+          response({ source, timestamp }) {
+            refreshStatus();
+          },
+
+          error({ error, timestamp }) {
+            makeInsCard({
+              badgeClass: 'ins-badge-result-fail',
+              badgeLabel: 'ERROR',
+              infoHtml: esc(String(error).slice(0, 80)),
+              timeStr: insTime(timestamp),
+              bodyHtml: `<pre class="ins-pre" style="color:#f87171">${esc(String(error))}</pre>`,
+              startExpanded: true
+            });
+          }
+        };
+
+        for (const [name, handler] of Object.entries(sseHandlers)) {
+          es.addEventListener(name, (e) => {
+            try {
+              handler(JSON.parse(e.data));
+            } catch (_) {}
+          });
+        }
+      }
+
+      connectSSE();
+
+      // ── API calls ─────────────────────────────────────────
+      async function refreshStatus() {
+        try {
+          const r = await fetch('/api/status');
+          const d = await r.json();
+          document.getElementById('stat-facts').textContent = d.factsCount;
+          document.getElementById('stat-skills').textContent = d.skillsCount;
+          document.getElementById('stat-tasks').textContent =
+            d.activeTasksCount;
+          document.getElementById('mem-facts').textContent = d.factsCount;
+          document.getElementById('mem-skills').textContent = d.skillsCount;
+          document.getElementById('mem-processes').textContent =
+            d.processesCount;
+          document.getElementById('mem-tasks').textContent = d.activeTasksCount;
+          const uptime = document.getElementById('uptime-display');
+          if (uptime) uptime.textContent = `Uptime: ${fmtUptime(d.uptime)}`;
+        } catch (_) {}
+      }
+
+      function fmtUptime(s) {
+        if (s < 60) return `${s}s`;
+        if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
+        return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+      }
+
+      // ── Settings ──────────────────────────────────────────
+      // ── Setup view ─────────────────────────────────────────
+      let _setupChecked = false;
+
+      async function initSetupView() {
+        if (_setupChecked) return;
+        // Pre-fill inputs with current config from server
+        try {
+          const r = await fetch('/api/config');
+          const d = await r.json();
+          document.getElementById('setup-url').value =
+            d.lmStudioUrl || 'http://localhost:1234/v1';
+          document.getElementById('setup-model').value =
+            d.model || 'qwen/qwen3.5-9b';
+        } catch (_) {}
+        runSetupCheck();
+      }
+
+      async function runSetupCheck() {
+        const url =
+          document.getElementById('setup-url').value.trim() ||
+          'http://localhost:1234/v1';
+        const model =
+          document.getElementById('setup-model').value.trim() ||
+          'qwen/qwen3.5-9b';
+
+        const serverBadge = document.getElementById('setup-server-badge');
+        const serverMsg = document.getElementById('setup-server-msg');
+        const modelBadge = document.getElementById('setup-model-badge');
+        const modelMsg = document.getElementById('setup-model-msg');
+        const modelList = document.getElementById('setup-model-list');
+
+        serverBadge.innerHTML = `<span class="badge warn">Checking…</span>`;
+        serverMsg.style.display = 'none';
+        modelBadge.innerHTML = '';
+        modelMsg.style.display = 'none';
+        modelList.style.display = 'none';
+
+        try {
+          const r = await fetch(
+            `/api/setup/check?url=${encodeURIComponent(url)}&model=${encodeURIComponent(model)}`
+          );
+          const d = await r.json();
+          _setupChecked = true;
+
+          if (!d.reachable) {
+            serverBadge.innerHTML = `<span class="badge err">✗ Not reachable</span>`;
+            serverMsg.className = 'setup-status-msg err';
+            serverMsg.textContent = `Cannot reach ${url} — is LM Studio running with the server enabled?`;
+            serverMsg.style.display = 'block';
+            modelBadge.innerHTML = `<span class="badge warn">—</span>`;
+            return;
+          }
+
+          serverBadge.innerHTML = `<span class="badge ok">✓ Running</span>`;
+          serverMsg.className = 'setup-status-msg ok';
+          serverMsg.textContent = `LM Studio is reachable. ${d.models.length} model(s) available.`;
+          serverMsg.style.display = 'block';
+
+          // Render model chips
+          if (d.models.length > 0) {
+            modelList.innerHTML = d.models
+              .map(
+                (m) =>
+                  `<button class="setup-model-chip${m === model ? ' active' : ''}" onclick="selectModel('${m}')">${m}</button>`
+              )
+              .join('');
+            modelList.style.display = 'flex';
+          }
+
+          if (d.modelLoaded) {
+            modelBadge.innerHTML = `<span class="badge ok">✓ Loaded</span>`;
+            modelMsg.className = 'setup-status-msg ok';
+            modelMsg.textContent = `${model} is loaded and ready.`;
+          } else if (d.models.length === 0) {
+            modelBadge.innerHTML = `<span class="badge err">✗ No models</span>`;
+            modelMsg.className = 'setup-status-msg err';
+            modelMsg.textContent =
+              'No models are loaded in LM Studio. Load one and click Check again.';
+          } else {
+            modelBadge.innerHTML = `<span class="badge warn">Not loaded</span>`;
+            modelMsg.className = 'setup-status-msg warn';
+            modelMsg.textContent = `"${model}" is not in LM Studio's loaded models. Select one from the list above, or load it in LM Studio.`;
+          }
+          modelMsg.style.display = 'block';
+        } catch (e) {
+          serverBadge.innerHTML = `<span class="badge err">✗ Error</span>`;
+          serverMsg.className = 'setup-status-msg err';
+          serverMsg.textContent = e.message;
+          serverMsg.style.display = 'block';
+        }
+      }
+
+      function selectModel(id) {
+        document.getElementById('setup-model').value = id;
+        document
+          .querySelectorAll('.setup-model-chip')
+          .forEach((c) => c.classList.toggle('active', c.textContent === id));
+        // Re-evaluate badge without re-hitting server
+        const modelBadge = document.getElementById('setup-model-badge');
+        const modelMsg = document.getElementById('setup-model-msg');
+        modelBadge.innerHTML = `<span class="badge ok">✓ Selected</span>`;
+        modelMsg.className = 'setup-status-msg ok';
+        modelMsg.textContent = `${id} selected.`;
+        modelMsg.style.display = 'block';
+      }
+
+      async function saveSetupConfig() {
+        const url = document.getElementById('setup-url').value.trim();
+        const model = document.getElementById('setup-model').value.trim();
+        const msg = document.getElementById('setup-save-msg');
+        msg.textContent = 'Saving…';
+        try {
+          const r = await fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lmStudioBaseURL: url, lmStudioModel: model })
+          });
+          const d = await r.json();
+          if (d.ok) {
+            msg.style.color = 'var(--green)';
+            msg.textContent = 'Saved! Restart nclaw to apply changes.';
+          } else {
+            msg.style.color = 'var(--red)';
+            msg.textContent = d.error || 'Save failed.';
+          }
+        } catch (e) {
+          msg.style.color = 'var(--red)';
+          msg.textContent = e.message;
+        }
+      }
+
+      async function saveTelegramToken() {
+        const input = document.getElementById('telegram-token-input');
+        const msg = document.getElementById('telegram-save-msg');
+        const token = input.value.trim();
+        msg.style.color = 'var(--muted)';
+        msg.textContent = 'Saving…';
+        try {
+          const r = await fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ telegramBotToken: token })
+          });
+          const d = await r.json();
+          if (d.ok) {
+            msg.style.color = 'var(--green, #22c55e)';
+            msg.textContent = token
+              ? '✓ Token saved. Bot is starting…'
+              : '✓ Token cleared.';
+            document.getElementById('telegram-badge').innerHTML = token
+              ? `<span class="badge ok">● Active</span>`
+              : `<span class="badge warn">Not configured</span>`;
+            document.getElementById(
+              'telegram-setup-instructions'
+            ).style.display = token ? 'none' : 'block';
+          } else {
+            msg.style.color = 'var(--red)';
+            msg.textContent = d.error || 'Failed to save.';
+          }
+        } catch (e) {
+          msg.style.color = 'var(--red)';
+          msg.textContent = e.message;
+        }
+      }
+
+      function renderWhitelistUI(users, hasTelegram) {
+        const badge = document.getElementById('whitelist-security-badge');
+        const tags = document.getElementById('whitelist-tags');
+        if (!badge || !tags) return;
+        if (hasTelegram) {
+          if (users && users.length > 0) {
+            badge.innerHTML = `<span class="badge ok">🔒 ${users.length} user${users.length > 1 ? 's' : ''} allowed</span>`;
+            tags.innerHTML = users
+              .map(
+                (u) =>
+                  `<span style="display:inline-flex;align-items:center;gap:5px;background:var(--surface);border:1px solid var(--border);border-radius:4px;font-size:11px;font-family:'SF Mono',Menlo,monospace;padding:2px 7px">${u}</span>`
+              )
+              .join('');
+          } else {
+            badge.innerHTML = `<span class="badge warn">⚠ Open to anyone</span>`;
+            tags.innerHTML = '';
+          }
+        } else {
+          badge.innerHTML = '';
+          tags.innerHTML = '';
+        }
+      }
+
+      async function saveTelegramAllowedUsers() {
+        const input = document.getElementById('telegram-allowed-input');
+        const msg = document.getElementById('telegram-allowed-msg');
+        const raw = input.value.trim();
+        const users = raw
+          ? raw
+              .split(',')
+              .map((u) => u.trim())
+              .filter(Boolean)
+          : [];
+        msg.style.color = 'var(--muted)';
+        msg.textContent = 'Saving…';
+        try {
+          const r = await fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ telegramAllowedUsers: users })
+          });
+          const d = await r.json();
+          if (d.ok) {
+            msg.style.color = 'var(--green, #22c55e)';
+            msg.textContent = users.length
+              ? `✓ Whitelist saved — ${users.length} user${users.length > 1 ? 's' : ''} allowed.`
+              : '✓ Whitelist cleared — bot is now open to anyone.';
+            renderWhitelistUI(users, true);
+          } else {
+            msg.style.color = 'var(--red)';
+            msg.textContent = d.error || 'Failed to save.';
+          }
+        } catch (e) {
+          msg.style.color = 'var(--red)';
+          msg.textContent = e.message;
+        }
+      }
+
+      async function loadSettings() {
+        try {
+          const r = await fetch('/api/config');
+          const d = await r.json();
+          document.getElementById('cfg-url').textContent = d.lmStudioUrl;
+          document.getElementById('cfg-model').textContent = d.model;
+          document.getElementById('lm-status-badge').innerHTML =
+            `<span class="badge ok">● Running</span>`;
+          document.getElementById('telegram-badge').innerHTML = d.hasTelegram
+            ? `<span class="badge ok">● Active</span>`
+            : `<span class="badge warn">Not configured</span>`;
+          document.getElementById('telegram-setup-instructions').style.display =
+            d.hasTelegram ? 'none' : 'block';
+          // Populate token input with saved value
+          const tokenInput = document.getElementById('telegram-token-input');
+          if (tokenInput) tokenInput.value = d.telegramBotToken || '';
+
+          // Populate allowed users input + tags
+          const allowedInput = document.getElementById(
+            'telegram-allowed-input'
+          );
+          if (allowedInput && d.telegramAllowedUsers) {
+            allowedInput.value = d.telegramAllowedUsers.join(', ');
+          }
+          renderWhitelistUI(d.telegramAllowedUsers || [], d.hasTelegram);
+        } catch (_) {
+          document.getElementById('lm-status-badge').innerHTML =
+            `<span class="badge err">● Offline</span>`;
+        }
+        // Load current version
+        try {
+          const vr = await fetch('/api/version');
+          const vd = await vr.json();
+          document.getElementById('version-badge').textContent =
+            'v' + vd.version;
+        } catch (_) {}
+        refreshStatus();
+      }
+
+      async function runUpgrade() {
+        const btn = document.getElementById('upgrade-btn');
+        const status = document.getElementById('upgrade-status');
+        const log = document.getElementById('upgrade-log');
+        btn.disabled = true;
+        btn.textContent = 'Upgrading…';
+        status.textContent = '';
+        log.style.display = 'block';
+        log.textContent = '';
+
+        try {
+          const res = await fetch('/api/upgrade', { method: 'POST' });
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buf = '';
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buf += decoder.decode(value, { stream: true });
+            const lines = buf.split('\n');
+            buf = lines.pop();
+            for (const line of lines) {
+              if (!line.startsWith('data:')) continue;
+              const evt = JSON.parse(line.slice(5).trim());
+              if (evt.type === 'log') {
+                log.textContent += evt.text;
+                log.scrollTop = log.scrollHeight;
+              }
+              if (evt.type === 'done') {
+                status.textContent = evt.text;
+                status.style.color = 'var(--ok)';
+              }
+              if (evt.type === 'error') {
+                status.textContent = evt.text;
+                status.style.color = 'var(--err)';
+              }
+            }
+          }
+        } catch (e) {
+          status.textContent = 'Failed: ' + e.message;
+          status.style.color = 'var(--err)';
+        }
+        btn.disabled = false;
+        btn.textContent = '↑ Upgrade to latest';
+      }
+
+      function copyText(text, btn) {
+        navigator.clipboard
+          .writeText(text)
+          .then(() => {
+            btn.textContent = 'Copied!';
+            setTimeout(() => (btn.textContent = 'Copy'), 2000);
+          })
+          .catch(() => {
+            btn.textContent = 'Failed';
+            setTimeout(() => (btn.textContent = 'Copy'), 2000);
+          });
+      }
+
+      function toggleTokenVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const icon = btn.querySelector('.eye-icon');
+        if (input.type === 'password') {
+          input.type = 'text';
+          icon.innerHTML = `
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+            <line x1="1" y1="1" x2="23" y2="23" />
+          `;
+        } else {
+          input.type = 'password';
+          icon.innerHTML = `
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+            <circle cx="12" cy="12" r="3" />
+          `;
+        }
+      }
+
+      // ── Init ──────────────────────────────────────────────
+      refreshStatus();
+      setInterval(refreshStatus, 15000);
+      document.getElementById('chat-input').focus();
+
+      // Auto-redirect to setup if LM Studio is not reachable
+      (async () => {
+        try {
+          const r = await fetch('/api/setup/check');
+          const d = await r.json();
+          if (!d.reachable) {
+            setView('setup');
+            document.getElementById('nav-setup').style.position = 'relative';
+          }
+        } catch (_) {}
+      })();
+    </script>
+  </body>
 </html>
